@@ -47,8 +47,8 @@ official transfer chain (notably the severed Gen 2→3 jump, plus one-way Pal Pa
 2. ✅ saves: Gen 5 read boxes + write a slot (byte-identical identity round-trip) — **DONE** (verified vs real save)
 3. ✅ Gen 5 block-checksum recompute (CRC-16-CCITT per box @ +0xFF2, both copies) — **DONE**, oracle-verified byte-identical on the real save
 4. ✅ Gen 4→5 conversion — **DONE**. End-to-end verified: real Diamond mon → converted → into B2W2 save → reads back. (PK4↔PK5 share layout; deltas = nature byte 0x41 = PID%25, flags 0x42 = 0.)
-5. transfer orchestrator + proper Gen 4 source reader (Gen4Save class: DP base 0xC100, HGSS 0xF700) — pick mon from source box → drop in target box  ← **next**
-6. UI MVP — MUST be clean/easy: drag `.sav` in → see boxes (sprites) → click mon → download result. No jargon.
+5. ✅ transfer orchestrator + source enumerator — **DONE**. `listSourceMon` (scan + dedup-by-PID, game-agnostic for Gen 4/5) → `transferToGen5Box`. Verified on Diamond + SoulSilver → B2W2.
+6. UI MVP — MUST be clean/easy: drag `.sav` in → see boxes (sprites) → click mon → download result. No jargon.  ← **next**
 7. PK3 reader + Gen 3→5 (emerald.sav, firered.sav)
 8. Gen 1/2 (GB) readers + Gen 1/2→5 (official VC-transfer DV→IV rules)
 9. Input normalizer (strip DeSmuME/emulator footers) + direct SD-card path + polish
