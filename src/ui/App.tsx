@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { readSource, transferToGen5Box, transferManyToGen5, type SourceMon } from '../transfer/transfer';
+import { readSource, transferManyToGen5, convertToGen5, isTransferableToGen5, type SourceMon } from '../transfer/transfer';
 import { loadGen5, type Gen5Save } from '../saves/gen5';
 import { readSpecies } from '../codec/pk5';
 import { spriteUrl, spriteFallbackUrl } from './sprites';
@@ -147,29 +147,37 @@ export function App() {
     if (slots[slot]) return flash('That slot is taken — pick an empty one.');
     const idx = selected;
     const pick = mon[idx]!;
-    transferToGen5Box(save, box, slot, game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
+    const pk5 = convertToGen5(game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
+    const label = pick.nickname || `#${pick.species}`;
+    if (!isTransferableToGen5(pk5)) {
+      return flash(`${label} can’t transfer up — the games don’t allow it. Skipped.`);
+    }
+    save.setBoxSlot(box, slot, pk5);
     setMoved((m) => new Set(m).add(idx));
     setSelected(null);
     bump((v) => v + 1);
-    flash(`Sent ${pick.nickname || `#${pick.species}`} → Box ${box + 1}`);
+    flash(`Sent ${label} → Box ${box + 1}`);
   }
 
   function transferAll() {
     if (!save) return flash('Load your Black 2 / White 2 save on the right first.');
     const pending = mon.map((m, i) => ({ m, i })).filter(({ i }) => !moved.has(i));
     if (pending.length === 0) return flash('Nothing left to transfer.');
-    const placed = transferManyToGen5(save, game.gen, pending.map((p) => p.m), box);
+    const { placed, skipped } = transferManyToGen5(save, game.gen, pending.map((p) => p.m), box);
+    const handled = placed + skipped.length;
     setMoved((prev) => {
       const next = new Set(prev);
-      for (let k = 0; k < placed; k++) next.add(pending[k]!.i);
+      for (let k = 0; k < handled; k++) next.add(pending[k]!.i);
       return next;
     });
     setSelected(null);
     bump((v) => v + 1);
+    const skipNote = skipped.length ? ` · skipped ${skipped.length} that can’t transfer up` : '';
+    const leftover = pending.length - handled;
     flash(
-      placed < pending.length
-        ? `Transferred ${placed} — boxes filled up, ${pending.length - placed} left`
-        : `Transferred all ${placed} into the boxes ✓`,
+      leftover > 0
+        ? `Transferred ${placed}${skipNote} — boxes full, ${leftover} left`
+        : `Transferred ${placed}${skipNote} ✓`,
     );
   }
 

@@ -110,23 +110,50 @@ export function transferToGen5Box(
 }
 
 /**
- * Transfer many source mon at once. Fills the target's EMPTY slots in order, starting at `startBox`
- * slot 0 and advancing through slots and boxes (occupied slots are skipped, never overwritten).
- * Returns how many were placed (fewer than `items.length` if the boxes filled up).
+ * Whether a converted Gen 5 Pokémon is actually allowed to transfer up. Some legit Pokémon can't
+ * (the games block them) — this catches the practical cases for our chain: a species not in the
+ * destination's dex (also covers anything that mapped to an unknown species, value 0), and eggs
+ * (Pal Park / Poké Transfer have always refused eggs).
+ */
+export function isTransferableToGen5(pk5: Uint8Array, maxDex = 649): boolean {
+  const dv = new DataView(pk5.buffer, pk5.byteOffset, pk5.byteLength);
+  const species = dv.getUint16(0x08, true);
+  if (species < 1 || species > maxDex) return false;
+  const isEgg = (dv.getUint32(0x38, true) >>> 30) & 1;
+  return isEgg === 0;
+}
+
+/**
+ * Transfer many source mon at once. Converts each, SKIPS any that can't legitimately transfer up
+ * (reported in `skipped`), and fills the target's empty slots in order from `startBox` (never
+ * overwriting an occupied slot). Stops early only if the boxes fill up.
  */
 export function transferManyToGen5(
   target: Gen5Save,
   sourceGen: number,
   items: SourceMon[],
   startBox = 0,
-): number {
-  let idx = 0;
-  for (let box = startBox; box < 24 && idx < items.length; box++) {
-    for (let slot = 0; slot < 30 && idx < items.length; slot++) {
-      if (target.boxSlot(box, slot) !== null) continue; // never clobber an existing mon
-      const it = items[idx++]!;
-      target.setBoxSlot(box, slot, convertToGen5(sourceGen, it.data, { nickname: it.nickname, otName: it.otName }));
+): { placed: number; skipped: SourceMon[] } {
+  const skipped: SourceMon[] = [];
+  let placed = 0;
+  let box = startBox;
+  let slot = 0;
+  const advanceToEmpty = (): boolean => {
+    while (box < 24) {
+      if (slot >= 30) { box++; slot = 0; continue; }
+      if (target.boxSlot(box, slot) === null) return true;
+      slot++;
     }
+    return false;
+  };
+
+  for (const it of items) {
+    const pk5 = convertToGen5(sourceGen, it.data, { nickname: it.nickname, otName: it.otName });
+    if (!isTransferableToGen5(pk5)) { skipped.push(it); continue; }
+    if (!advanceToEmpty()) break; // boxes full
+    target.setBoxSlot(box, slot, pk5);
+    placed++;
+    slot++;
   }
-  return idx;
+  return { placed, skipped };
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { listSourceMon, readSource, convertToGen5, transferToGen5Box, transferManyToGen5 } from './transfer';
+import { listSourceMon, readSource, convertToGen5, transferToGen5Box, transferManyToGen5, isTransferableToGen5 } from './transfer';
 import { loadGen5 } from '../saves/gen5';
 import { readSpecies } from '../codec/pk5';
 
@@ -60,7 +60,7 @@ describe('transfer orchestrator', () => {
   it('transferManyToGen5 fills empty slots across boxes and reports the count placed', () => {
     const src = readSource(fixture('gen2_crystal.sav'), 2).slice(0, 45);
     const save = loadGen5(fixture('b2w2.sav'));
-    const placed = transferManyToGen5(save, 2, src, 0); // 45 mon → fills Box 1 (30) + Box 2 (15)
+    const { placed } = transferManyToGen5(save, 2, src, 0); // 45 mon → fills Box 1 (30) + Box 2 (15)
     expect(placed).toBe(45);
     const reloaded = loadGen5(save.toBytes());
     expect(readSpecies(reloaded.boxSlot(0, 0)!)).toBe(src[0]!.species);
@@ -75,6 +75,37 @@ describe('transfer orchestrator', () => {
     const reloaded = loadGen5(save.toBytes());
     expect(readSpecies(reloaded.boxSlot(7, 0)!)).toBe(377); // Regirock still there, untouched
     expect(readSpecies(reloaded.boxSlot(7, 6)!)).toBe(src[0]!.species); // first free slot
+  });
+
+  it('isTransferableToGen5 accepts in-dex non-eggs, rejects out-of-dex and eggs', () => {
+    const mk = (species: number, egg = false) => {
+      const d = new Uint8Array(136);
+      const v = new DataView(d.buffer);
+      v.setUint16(0x08, species, true);
+      if (egg) v.setUint32(0x38, 1 << 30, true);
+      return d;
+    };
+    expect(isTransferableToGen5(mk(25))).toBe(true); // Pikachu
+    expect(isTransferableToGen5(mk(0))).toBe(false); // unknown species
+    expect(isTransferableToGen5(mk(650))).toBe(false); // beyond Gen 5 dex
+    expect(isTransferableToGen5(mk(151, true))).toBe(false); // egg
+  });
+
+  it('transferManyToGen5 skips untransferable mon (egg / out-of-dex) instead of failing', () => {
+    const save = loadGen5(fixture('b2w2.sav'));
+    const mk = (species: number, egg = false): import('./transfer').SourceMon => {
+      const d = new Uint8Array(136);
+      const v = new DataView(d.buffer);
+      v.setUint16(0x08, species, true);
+      if (egg) v.setUint32(0x38, 1 << 30, true);
+      return { offset: 0, pid: species, species, data: d, nickname: '', otName: '' };
+    };
+    const items = [mk(25), mk(0), mk(700), mk(151, true), mk(143)];
+    const { placed, skipped } = transferManyToGen5(save, 5, items, 0);
+    expect(placed).toBe(2); // Pikachu + Snorlax
+    expect(skipped.length).toBe(3); // unknown, out-of-dex, egg
+    expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 0)!)).toBe(25);
+    expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 1)!)).toBe(143);
   });
 
   it('convertToGen5 rejects source gens not yet implemented (clear error, no silent corruption)', () => {
