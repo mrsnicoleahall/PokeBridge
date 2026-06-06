@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { listSourceMon, transferToGen5Box, type SourceMon } from '../transfer/transfer';
+import { readSource, transferToGen5Box, type SourceMon } from '../transfer/transfer';
 import { loadGen5, type Gen5Save } from '../saves/gen5';
 import { readSpecies, readNickname } from '../codec/pk5';
 import { spriteUrl, spriteFallbackUrl } from './sprites';
@@ -10,7 +10,7 @@ const SOURCE_GAMES: SourceGame[] = [
   { id: 'bw', label: 'Black / White / Black 2 / White 2', gen: 5, maxDex: 649, ready: true },
   { id: 'dppt', label: 'Diamond / Pearl / Platinum', gen: 4, maxDex: 493, ready: true },
   { id: 'hgss', label: 'HeartGold / SoulSilver', gen: 4, maxDex: 493, ready: true },
-  { id: 'gba', label: 'Ruby / Sapphire / Emerald / FR / LG  (Gen 3)', gen: 3, maxDex: 386, ready: false },
+  { id: 'gba', label: 'Ruby / Sapphire / Emerald / FR / LG  (Gen 3)', gen: 3, maxDex: 386, ready: true },
   { id: 'gb', label: 'Red / Blue / Yellow / Gold / Silver / Crystal  (Gen 1/2)', gen: 1, maxDex: 251, ready: false },
 ];
 
@@ -73,7 +73,7 @@ export function App() {
   async function loadSource(file: File) {
     try {
       const bytes = await readFile(file);
-      const list = listSourceMon(bytes, game.maxDex);
+      const list = readSource(bytes, game.gen);
       setMon(list);
       setSourceName(file.name);
       setSelected(null);

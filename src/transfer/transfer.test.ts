@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { listSourceMon, convertToGen5, transferToGen5Box } from './transfer';
+import { listSourceMon, readSource, convertToGen5, transferToGen5Box } from './transfer';
 import { loadGen5 } from '../saves/gen5';
 import { readSpecies } from '../codec/pk5';
 
@@ -37,7 +37,27 @@ describe('transfer orchestrator', () => {
     expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 1)!)).toBe(377);
   });
 
+  it('readSource reads Gen 3 box mon (Emerald) with National Dex species', () => {
+    const mon = readSource(fixture('emerald.sav'), 3);
+    expect(mon.length).toBeGreaterThan(0);
+    for (const m of mon) {
+      expect(m.species).toBeGreaterThanOrEqual(1);
+      expect(m.species).toBeLessThanOrEqual(386);
+    }
+  });
+
+  it('readSource reads Gen 4 sources via scan', () => {
+    expect(readSource(fixture('diamond.sav'), 4).length).toBeGreaterThan(0);
+  });
+
+  it('transfers a real Gen 3 mon into Black 2 through the orchestrator', () => {
+    const pick = readSource(fixture('emerald.sav'), 3)[0]!;
+    const save = loadGen5(fixture('b2w2.sav'));
+    transferToGen5Box(save, 0, 0, 3, pick.data);
+    expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 0)!)).toBe(pick.species);
+  });
+
   it('convertToGen5 rejects source gens not yet implemented (clear error, no silent corruption)', () => {
-    expect(() => convertToGen5(3, new Uint8Array(136))).toThrowError(/gen 3/i);
+    expect(() => convertToGen5(2, new Uint8Array(80))).toThrowError(/gen 2/i);
   });
 });
