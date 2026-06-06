@@ -1,35 +1,38 @@
-# PokeBridge — progress (as of 2026-06-05)
+# PokeBridge — progress
 
-**82 tests green · 14 commits on `main` · build clean.** The full chain is done.
+**99 tests green · 21 commits on `main` · build clean.** Every layer validated against real save files.
 
-## ✅ Gen 1 / 2 / 3 / 4 / 5 → Black/White 2 — all working, all validated against real saves
-- **Gen 1** (Red/Blue/Yellow) — validated on the RoC Blue living dex (all 151)
-- **Gen 2** (Gold/Silver/Crystal) — validated on the RoC Crystal living dex
-- **Gen 3** (Ruby/Sapphire/Emerald/FR/LG) — validated on your Emerald + FireRed
-- **Gen 4** (DPPt/HGSS) — validated on your Diamond + SoulSilver
-- **Gen 5** (BW/B2W2) — validated on your Black 2
+## The chain — any old game → a modern game
+**Sources:** Gen 1, 2, 3, 4, 5 (Red/Blue/Yellow · Gold/Silver/Crystal · Ruby…LeafGreen · DPPt/HGSS · BW/B2W2)
+**Destinations:** Gen 5 (Black/White/B2W2) **or Gen 7 (Ultra Sun/Ultra Moon)** — pick in the UI.
 
-Every generation has an end-to-end test proving: a real mon out of that save → converted → dropped into
-your real Black 2 save → reads back as the correct National Dex species, with valid checksums.
+Every source→destination path has an end-to-end test: a real mon out of that save → converted → into a real
+destination save → reads back as the right species, checksums valid.
 
-## The UI
-`npm run dev` → http://localhost:5273 (Chrome for "Save to SD in place"). Pick the source game from the
-dropdown (now all five eras) → load `.sav` → your Pokémon appear as sprites → load Black 2 → click a mon →
-click an empty box slot → **Save to SD**. Emulator footers (DeSmuME `.dsv`/`.dst`) are auto-stripped.
+## The no-Transporter route to Bank/HOME (the dream feature)
+Bank/HOME are cloud — can't write them directly. So instead PokeBridge writes your whole collection straight
+into an **Ultra Moon** save; from there the game's **native Bank/HOME link moves whole boxes** — no
+Poké Transporter, no 30-at-a-time grind. Back up/restore the USUM save with Checkpoint/JKSM on the CFW 3DS.
 
-## How Gen 1/2 conversion handles missing data
-Gen 1/2 Pokémon predate PID/nature/ability/gender, so the uplift follows sensible rules:
-- **DV → IV** as `2*DV+1` (a flawless GB mon stays flawless)
-- **PID** synthesized deterministically (drives nature/gender/shininess); **nature** set from it
-- **Gen 1 species** use a scrambled internal index → mapped via a table derived from the living dex and
-  verified against known index facts (Rhydon=1, Mew=21, Mewtwo=131, Bulbasaur=153)
-- **EVs reset** (Gen 1/2 "stat experience" is a different system)
+Cracking Gen 7 was the hard part: its block checksums use CRC-16/X-25 over scattered, game-specific block
+offsets — reverse-engineered from your real save (PC storage = block 14, 960×232 @ 0xEACE) and validated with
+the no-op oracle (recompute on the untouched save → byte-identical).
 
-## Known cosmetic gaps (non-blocking; you said you don't care about legality)
-- **Held item** and **ability** are left empty on Gen 1/2/3 transfers — both need cross-gen lookup tables.
-  The mon transfers, plays, and is correct in species/level/moves/IVs/nickname; these are quick follow-ups
-  whenever you want them filled in.
+## Quality-of-life
+- **Transfer all** — fills empty destination slots across boxes in one click.
+- **Validity filter** — skips (and reports) Pokémon that legitimately can't move up: out-of-dex species (also
+  catches anything that maps to an unknown species) and eggs. Never writes a glitched slot.
+- **Emulator saves** — DeSmuME `.dsv`/`.dst` footers auto-stripped.
+- **Save in place** — open the destination off the SD card and write back to it (Gen 5 / nds-bootstrap).
 
-## Commit log (newest first)
-`Gen1 + full chain wiring · Gen2 GSC · gen3 UI wiring · gen3→5 · gen3 parser · gen3 species ·
-footer normalizer · CFW save-in-place · UI · orchestrator · Gen5 foundation`
+## Run it
+```bash
+cd ~/Projects/PokeBridge
+npm run dev      # → http://localhost:5273 (Chrome for in-place SD save)
+npm test         # 99 tests
+```
+
+## Known cosmetic gaps (non-blocking; you don't care about legality)
+- Gen 1/2/3 transfers leave **held item** + **ability** empty (need cross-gen lookup tables).
+- Gen 7 met-data is minimal (version-of-origin set to Ultra Moon). Mon transfer, play, and read back correctly;
+  these are quick follow-ups if you ever want them filled.
