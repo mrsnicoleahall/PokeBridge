@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { readSource, transferToGen5Box, type SourceMon } from '../transfer/transfer';
 import { loadGen5, type Gen5Save } from '../saves/gen5';
-import { readSpecies, readNickname } from '../codec/pk5';
+import { readSpecies } from '../codec/pk5';
 import { spriteUrl, spriteFallbackUrl } from './sprites';
 
 type SourceGame = { id: string; label: string; gen: number; maxDex: number; ready: boolean };
@@ -11,7 +11,8 @@ const SOURCE_GAMES: SourceGame[] = [
   { id: 'dppt', label: 'Diamond / Pearl / Platinum', gen: 4, maxDex: 493, ready: true },
   { id: 'hgss', label: 'HeartGold / SoulSilver', gen: 4, maxDex: 493, ready: true },
   { id: 'gba', label: 'Ruby / Sapphire / Emerald / FR / LG  (Gen 3)', gen: 3, maxDex: 386, ready: true },
-  { id: 'gb', label: 'Red / Blue / Yellow / Gold / Silver / Crystal  (Gen 1/2)', gen: 1, maxDex: 251, ready: false },
+  { id: 'gsc', label: 'Gold / Silver / Crystal  (Gen 2)', gen: 2, maxDex: 251, ready: true },
+  { id: 'rby', label: 'Red / Blue / Yellow  (Gen 1)', gen: 1, maxDex: 151, ready: true },
 ];
 
 const BOX_COLS = 6;
@@ -145,11 +146,11 @@ export function App() {
     if (selected == null) return flash('Pick a Pokémon on the left first.');
     if (slots[slot]) return flash('That slot is taken — pick an empty one.');
     const pick = mon[selected]!;
-    transferToGen5Box(save, box, slot, game.gen, pick.data);
+    transferToGen5Box(save, box, slot, game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
     setMoved((m) => new Set(m).add(pick.pid));
     setSelected(null);
     bump((v) => v + 1);
-    flash(`Sent ${readNickname(pick.data) || `#${pick.species}`} → Box ${box + 1}`);
+    flash(`Sent ${pick.nickname || `#${pick.species}`} → Box ${box + 1}`);
   }
 
   return (
@@ -211,7 +212,7 @@ export function App() {
                     title={`#${m.species}`}
                   >
                     <Sprite dex={m.species} />
-                    <span className="mon-name">{readNickname(m.data) || `#${m.species}`}</span>
+                    <span className="mon-name">{m.nickname || `#${m.species}`}</span>
                   </button>
                 ))}
                 {mon.length === 0 && <p className="empty-note">No Pokémon loaded yet.</p>}
