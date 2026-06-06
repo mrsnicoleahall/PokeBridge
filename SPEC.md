@@ -51,8 +51,12 @@ official transfer chain (notably the severed Gen 2→3 jump, plus one-way Pal Pa
 6. ✅ UI MVP (Vite+React) — **DONE**. Pick source game → load .sav → sprite grid of your mon → load Black 2 → click mon → click empty box slot → download. Pixel BW sprites, clean storage-terminal look. `npm run dev` (port 5273).
 7. Gen 3 → 5:
    - ✅ PK3 codec (decode-only) — validated vs real Emerald + FireRed. Shares the 24-perm table (ByOrder helpers); XOR cipher key=OTID^PID; checksum = sum of decrypted data words.
-   - ⏳ next: Gen 3 internal→National species map; Gen 3 save-section parser (14 sections + footers, active-slot by save index, boxes may straddle section boundaries); Gen 3→5 conversion (ability slot, met/Pal Park, IVs already 0-31, PP, level→exp, OT/nickname charset→Unicode); wire into UI dropdown.
-8. Gen 1/2 (GB) readers + Gen 1/2→5 (official VC-transfer DV→IV rules)
+   - ✅ internal→National species map (validated vs Emerald)
+   - ✅ save-section parser (active slot by save index, rotated sections, PC buffer from sections 5–13)
+   - ✅ Gen 3→5 conversion (species/PID/OT/exp/friendship/EVs/contest/moves/PP/PP-ups/IVs/egg/nature/names/ball/met) — end-to-end verified real Emerald → Black 2. GAPS: held item + ability ID left empty (need data tables; non-blocking).
+   - ✅ wired into orchestrator (readSource) + UI dropdown.
+8. Gen 1/2 (GB) readers + Gen 1/2→5 — **BLOCKED: needs a Gen 1/2 .sav fixture to validate** (and confirmed
+   VC-transfer rules: Gen 1 species-index table, DV→IV, generated PID/nature/ability/gender). Not built blind.
 9. Input normalizer (strip DeSmuME/emulator footers) + direct SD-card path + polish
    - ✅ direct SD save: File System Access API writes the raw `.sav` back in place on the card (CFW/nds-bootstrap compatible); download fallback otherwise. CFW round-trip documented in README.
    - ⏳ still to do: strip emulator footers (DeSmuME `.dsv`/`.dst`) on input so footer'd saves load.
