@@ -55,8 +55,10 @@ official transfer chain (notably the severed Gen 2→3 jump, plus one-way Pal Pa
    - ✅ save-section parser (active slot by save index, rotated sections, PC buffer from sections 5–13)
    - ✅ Gen 3→5 conversion (species/PID/OT/exp/friendship/EVs/contest/moves/PP/PP-ups/IVs/egg/nature/names/ball/met) — end-to-end verified real Emerald → Black 2. GAPS: held item + ability ID left empty (need data tables; non-blocking).
    - ✅ wired into orchestrator (readSource) + UI dropdown.
-8. Gen 1/2 (GB) readers + Gen 1/2→5 — **BLOCKED: needs a Gen 1/2 .sav fixture to validate** (and confirmed
-   VC-transfer rules: Gen 1 species-index table, DV→IV, generated PID/nature/ability/gender). Not built blind.
+8. ✅ Gen 1/2 (GB) → 5 — **DONE**, validated on RoC Blue + Crystal living dexes. gb-text charset, gb-common
+   (DV→IV=2*DV+1, synthesized PID), Gen 1 index→National table (derived from the living dex, verified vs
+   famous index facts), Gen 1 & 2 box parsers (structure-detected), gen1to5/gen2to5 conversions, wired into
+   orchestrator + UI. Gaps: held item + ability empty (need tables; non-blocking).
 9. Input normalizer (strip DeSmuME/emulator footers) + direct SD-card path + polish
    - ✅ direct SD save: File System Access API writes the raw `.sav` back in place on the card (CFW/nds-bootstrap compatible); download fallback otherwise. CFW round-trip documented in README.
    - ⏳ still to do: strip emulator footers (DeSmuME `.dsv`/`.dst`) on input so footer'd saves load.
