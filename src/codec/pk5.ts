@@ -37,6 +37,18 @@ export function isEmptySlot(stored: Uint8Array): boolean {
   return view(stored).getUint16(0x06, true) === 0;
 }
 
+/** Nickname, decoded from the UTF-16 name field at 0x48 (max 11 chars, 0xFFFF-terminated). */
+export function readNickname(decrypted: Uint8Array): string {
+  const dv = view(decrypted);
+  let name = '';
+  for (let i = 0; i < 11; i++) {
+    const c = dv.getUint16(0x48 + i * 2, true);
+    if (c === 0xffff || c === 0x0000) break;
+    name += String.fromCharCode(c);
+  }
+  return name;
+}
+
 /** XOR the 0x08..0x87 region word-by-word with the keystream from `seed` (symmetric: encrypt = decrypt). */
 function xorRegion(buf: Uint8Array, seed: number): void {
   const dv = view(buf);
@@ -55,7 +67,7 @@ function getBlocks(buf: Uint8Array): Quad {
 }
 
 function setBlocks(buf: Uint8Array, blocks: Quad): void {
-  for (let i = 0; i < 4; i++) buf.set(blocks[i], BLOCK_START + i * BLOCK_SIZE);
+  for (let i = 0; i < 4; i++) buf.set(blocks[i]!, BLOCK_START + i * BLOCK_SIZE);
 }
 
 /** Take a decrypted (canonical) PK5, recompute its checksum, and return the encrypted on-disk form. */

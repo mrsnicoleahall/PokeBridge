@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PK5_SIZE, pk5Checksum, encryptPk5, decryptPk5, readSpecies, isEmptySlot } from './pk5';
+import { PK5_SIZE, pk5Checksum, encryptPk5, decryptPk5, readSpecies, isEmptySlot, readNickname } from './pk5';
 
 /** Build a synthetic *decrypted* 136-byte PK5 with a given PID and recognizable block data. */
 function makeDecrypted(pid: number): Uint8Array {
@@ -49,6 +49,15 @@ describe('PK5 codec', () => {
     const dec = new Uint8Array(PK5_SIZE);
     new DataView(dec.buffer).setUint16(0x08, 646, true); // Kyurem
     expect(readSpecies(dec)).toBe(646);
+  });
+
+  it('readNickname decodes the UTF-16 name at 0x48 up to the 0xFFFF terminator', () => {
+    const dec = new Uint8Array(PK5_SIZE);
+    const v = new DataView(dec.buffer);
+    const name = 'PIKA';
+    for (let i = 0; i < name.length; i++) v.setUint16(0x48 + i * 2, name.charCodeAt(i), true);
+    v.setUint16(0x48 + name.length * 2, 0xffff, true);
+    expect(readNickname(dec)).toBe('PIKA');
   });
 
   it('isEmptySlot is true for an all-zero slot and false for a real mon', () => {
