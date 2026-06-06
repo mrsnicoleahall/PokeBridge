@@ -1,10 +1,22 @@
 import { useMemo, useRef, useState } from 'react';
-import { readSource, transferManyToGen5, convertToGen5, isTransferableToGen5, type SourceMon } from '../transfer/transfer';
+import {
+  readSource, transferManyToGen5, convertToGen5, isTransferableToGen5,
+  transferManyToGen7, convertToGen7, isTransferableToGen7, type SourceMon,
+} from '../transfer/transfer';
 import { loadGen5, type Gen5Save } from '../saves/gen5';
+import { loadGen7, type Gen7Save } from '../saves/gen7';
 import { readSpecies } from '../codec/pk5';
+import { readSpeciesPk7 } from '../codec/pk7';
 import { spriteUrl, spriteFallbackUrl } from './sprites';
 
 type SourceGame = { id: string; label: string; gen: number; maxDex: number; ready: boolean };
+type DestGame = { id: string; label: string; gen: 5 | 7; boxes: number };
+type AnySave = Gen5Save | Gen7Save;
+
+const DEST_GAMES: DestGame[] = [
+  { id: 'gen5', label: 'Black / White / Black 2 / White 2', gen: 5, boxes: 24 },
+  { id: 'gen7', label: 'Ultra Sun / Ultra Moon', gen: 7, boxes: 32 },
+];
 
 const SOURCE_GAMES: SourceGame[] = [
   { id: 'bw', label: 'Black / White / Black 2 / White 2', gen: 5, maxDex: 649, ready: true },
@@ -17,7 +29,6 @@ const SOURCE_GAMES: SourceGame[] = [
 
 const BOX_COLS = 6;
 const SLOTS_PER_BOX = 30;
-const BOX_COUNT = 24;
 
 // File System Access API lets us write the save straight back to the SD card, in place.
 const HAS_FSA = typeof window !== 'undefined' && 'showOpenFilePicker' in window;
@@ -56,10 +67,26 @@ export function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [moved, setMoved] = useState<Set<number>>(new Set());
 
-  const [save, setSave] = useState<Gen5Save | null>(null);
+  const [destGame, setDestGame] = useState<DestGame>(DEST_GAMES[0]!);
+  const [save, setSave] = useState<AnySave | null>(null);
   const [targetName, setTargetName] = useState('');
   const [targetHandle, setTargetHandle] = useState<any>(null); // FileSystemFileHandle, for in-place SD save
   const [box, setBox] = useState(0);
+
+  // Destination-generation dispatch (Gen 5 vs Gen 7) — same shapes, different formats.
+  const dest = destGame.gen === 7
+    ? {
+        convert: convertToGen7,
+        ok: (pk: Uint8Array) => isTransferableToGen7(pk),
+        many: (s: AnySave, gen: number, items: SourceMon[], b: number) => transferManyToGen7(s as Gen7Save, gen, items, b),
+        species: readSpeciesPk7,
+      }
+    : {
+        convert: convertToGen5,
+        ok: (pk: Uint8Array) => isTransferableToGen5(pk),
+        many: (s: AnySave, gen: number, items: SourceMon[], b: number) => transferManyToGen5(s as Gen5Save, gen, items, b),
+        species: readSpecies,
+      };
   const [, bump] = useState(0); // force re-read after a mutation
   const [toast, setToast] = useState('');
 
@@ -88,13 +115,13 @@ export function App() {
   async function loadTarget(file: File, handle: any = null) {
     try {
       const bytes = await readFile(file);
-      setSave(loadGen5(bytes));
+      setSave(destGame.gen === 7 ? loadGen7(bytes) : loadGen5(bytes));
       setTargetName(file.name);
       setTargetHandle(handle);
       setBox(0);
       flash(handle ? `Loaded ${file.name} — savable to the SD in place` : `Loaded destination: ${file.name}`);
     } catch (e) {
-      flash(`Not a valid Black/White 2 save: ${(e as Error).message}`);
+      flash(`Not a valid ${destGame.label} save: ${(e as Error).message}`);
     }
   }
 
@@ -147,12 +174,12 @@ export function App() {
     if (slots[slot]) return flash('That slot is taken — pick an empty one.');
     const idx = selected;
     const pick = mon[idx]!;
-    const pk5 = convertToGen5(game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
+    const rec = dest.convert(game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
     const label = pick.nickname || `#${pick.species}`;
-    if (!isTransferableToGen5(pk5)) {
+    if (!dest.ok(rec)) {
       return flash(`${label} can’t transfer up — the games don’t allow it. Skipped.`);
     }
-    save.setBoxSlot(box, slot, pk5);
+    (save as any).setBoxSlot(box, slot, rec);
     setMoved((m) => new Set(m).add(idx));
     setSelected(null);
     bump((v) => v + 1);
@@ -163,7 +190,7 @@ export function App() {
     if (!save) return flash('Load your Black 2 / White 2 save on the right first.');
     const pending = mon.map((m, i) => ({ m, i })).filter(({ i }) => !moved.has(i));
     if (pending.length === 0) return flash('Nothing left to transfer.');
-    const { placed, skipped } = transferManyToGen5(save, game.gen, pending.map((p) => p.m), box);
+    const { placed, skipped } = dest.many(save, game.gen, pending.map((p) => p.m), box);
     const handled = placed + skipped.length;
     setMoved((prev) => {
       const next = new Set(prev);
@@ -187,12 +214,12 @@ export function App() {
         <div className="wordmark">
           POKé<span>BRIDGE</span>
         </div>
-        <p className="tagline">Move your Pokémon up the chain — Gen 1·2·3·4 → Black / White</p>
+        <p className="tagline">Move your Pokémon up the chain — Gen 1–5 → Black/White or Ultra Sun/Moon</p>
       </header>
 
       <ol className="steps">
         <li><b>1</b> Pick your old game &amp; load its save</li>
-        <li><b>2</b> Load your Black / White / Black 2 / White 2 save</li>
+        <li><b>2</b> Pick &amp; load your destination save (Gen 5 or Ultra Sun/Moon)</li>
         <li><b>3</b> Click a Pokémon, then an empty box slot</li>
         <li><b>4</b> Download — your original file is never touched</li>
       </ol>
@@ -267,18 +294,27 @@ export function App() {
         {/* --------------------------- DESTINATION -------------------------- */}
         <section className="panel target">
           <div className="panel-head">
-            <h2>Black / White (Gen 5)</h2>
-            {save && (
+            <h2>Destination</h2>
+            {save ? (
               <button className="ghost" onClick={saveOut}>
                 {targetHandle ? '✓ Save to SD (in place)' : HAS_FSA ? '↓ Save to SD…' : '↓ Download save'}
               </button>
+            ) : (
+              <select
+                value={destGame.id}
+                onChange={(e) => setDestGame(DEST_GAMES.find((x) => x.id === e.target.value)!)}
+              >
+                {DEST_GAMES.map((g) => (
+                  <option key={g.id} value={g.id}>{g.label}</option>
+                ))}
+              </select>
             )}
           </div>
 
           {!save ? (
             <>
               <button className="drop" onClick={() => (HAS_FSA ? openTargetFromDisk() : dstInput.current?.click())}>
-                Load Black / White / B2W2 .sav
+                Load {destGame.label} .sav
               </button>
               <input
                 ref={dstInput}
@@ -295,13 +331,18 @@ export function App() {
           ) : (
             <>
               <p className="sd-hint">
-                ↳ On a CFW 2DS, this save lives next to the ROM in <code>/roms/nds/</code> (or
-                <code> /saves/</code>, per your TWiLightMenu++ setting). Save back there and load it on the console.
+                {destGame.gen === 7 ? (
+                  <>↳ For a CFW 3DS, back up the Ultra Sun/Moon save with <code>Checkpoint</code> / <code>JKSM</code>,
+                  edit it here, then restore it — and use the in-game Bank/HOME link (whole boxes, no Transporter).</>
+                ) : (
+                  <>↳ On a CFW 2DS, this save lives next to the ROM in <code>/roms/nds/</code> (or
+                  <code> /saves/</code>, per your TWiLightMenu++ setting). Save back there and load it on the console.</>
+                )}
               </p>
               <div className="box-nav">
-                <button onClick={() => setBox((b) => (b + BOX_COUNT - 1) % BOX_COUNT)}>‹</button>
-                <span>Box {box + 1}</span>
-                <button onClick={() => setBox((b) => (b + 1) % BOX_COUNT)}>›</button>
+                <button onClick={() => setBox((b) => (b + destGame.boxes - 1) % destGame.boxes)}>‹</button>
+                <span>Box {box + 1} / {destGame.boxes}</span>
+                <button onClick={() => setBox((b) => (b + 1) % destGame.boxes)}>›</button>
               </div>
               <div className="grid box-grid" style={{ gridTemplateColumns: `repeat(${BOX_COLS}, 1fr)` }}>
                 {Array.from({ length: SLOTS_PER_BOX }, (_, slot) => {
@@ -313,7 +354,7 @@ export function App() {
                       className={`slot ${occupant ? 'full' : 'open'} ${armed ? 'armed' : ''}`}
                       onClick={() => placeInSlot(slot)}
                     >
-                      {occupant ? <Sprite dex={readSpecies(occupant)} size={48} /> : <span className="slot-dot" />}
+                      {occupant ? <Sprite dex={dest.species(occupant)} size={48} /> : <span className="slot-dot" />}
                     </button>
                   );
                 })}

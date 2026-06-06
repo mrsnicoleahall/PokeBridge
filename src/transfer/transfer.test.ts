@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { listSourceMon, readSource, convertToGen5, transferToGen5Box, transferManyToGen5, isTransferableToGen5 } from './transfer';
+import { listSourceMon, readSource, convertToGen5, transferToGen5Box, transferManyToGen5, isTransferableToGen5, transferManyToGen7 } from './transfer';
 import { loadGen5 } from '../saves/gen5';
+import { loadGen7 } from '../saves/gen7';
 import { readSpecies } from '../codec/pk5';
+import { readSpeciesPk7 } from '../codec/pk7';
 
 const fixture = (n: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../../fixtures/${n}`, import.meta.url))));
 
@@ -106,6 +108,16 @@ describe('transfer orchestrator', () => {
     expect(skipped.length).toBe(3); // unknown, out-of-dex, egg
     expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 0)!)).toBe(25);
     expect(readSpecies(loadGen5(save.toBytes()).boxSlot(0, 1)!)).toBe(143);
+  });
+
+  it('END-TO-END Gen 7: real source mon → PK5 → PK7 → Ultra Moon box → reads back', () => {
+    const src = readSource(fixture('gen2_crystal.sav'), 2).slice(0, 30);
+    const save = loadGen7(fixture('usum_moon.sav'));
+    const { placed } = transferManyToGen7(save, 2, src, 0);
+    expect(placed).toBe(30);
+    const reloaded = loadGen7(save.toBytes());
+    expect(readSpeciesPk7(reloaded.boxSlot(0, 0)!)).toBe(src[0]!.species);
+    expect(readSpeciesPk7(reloaded.boxSlot(0, 29)!)).toBe(src[29]!.species);
   });
 
   it('convertToGen5 rejects source gens not yet implemented (clear error, no silent corruption)', () => {

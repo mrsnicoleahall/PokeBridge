@@ -12,11 +12,13 @@ import { convertGen3ToGen5 } from '../convert/gen3to5';
 import { convertGen2ToGen5 } from '../convert/gen2to5';
 import { convertGen1ToGen5 } from '../convert/gen1to5';
 import { gen1InternalToNational } from '../convert/gen1-species';
+import { convertPk5ToPk7 } from '../convert/pk5to7';
 import { normalizeSave } from '../saves/normalize';
 import { loadGen3 } from '../saves/gen3';
 import { loadGen2 } from '../saves/gen2';
 import { loadGen1 } from '../saves/gen1';
 import type { Gen5Save } from '../saves/gen5';
+import type { Gen7Save } from '../saves/gen7';
 
 export interface SourceMon {
   offset: number;
@@ -152,6 +154,52 @@ export function transferManyToGen5(
     if (!isTransferableToGen5(pk5)) { skipped.push(it); continue; }
     if (!advanceToEmpty()) break; // boxes full
     target.setBoxSlot(box, slot, pk5);
+    placed++;
+    slot++;
+  }
+  return { placed, skipped };
+}
+
+// ---- Gen 7 (Ultra Sun/Moon) destination — everything goes source → PK5 → PK7 ----
+
+/** Uplift a source-gen Pokémon all the way to a decrypted Gen 7 (PK7) record. */
+export function convertToGen7(sourceGen: number, data: Uint8Array, opts: ConvertOpts = {}): Uint8Array {
+  return convertPk5ToPk7(convertToGen5(sourceGen, data, opts));
+}
+
+/** Whether a converted Gen 7 Pokémon may transfer up (in the Gen 7 dex, not an egg). */
+export function isTransferableToGen7(pk7: Uint8Array, maxDex = 807): boolean {
+  const dv = new DataView(pk7.buffer, pk7.byteOffset, pk7.byteLength);
+  const species = dv.getUint16(0x08, true);
+  if (species < 1 || species > maxDex) return false;
+  const isEgg = (dv.getUint32(0x74, true) >>> 30) & 1;
+  return isEgg === 0;
+}
+
+/** Batch-transfer into an Ultra Sun/Moon save (32 boxes), skipping untransferable mon. */
+export function transferManyToGen7(
+  target: Gen7Save,
+  sourceGen: number,
+  items: SourceMon[],
+  startBox = 0,
+): { placed: number; skipped: SourceMon[] } {
+  const skipped: SourceMon[] = [];
+  let placed = 0;
+  let box = startBox;
+  let slot = 0;
+  const advanceToEmpty = (): boolean => {
+    while (box < 32) {
+      if (slot >= 30) { box++; slot = 0; continue; }
+      if (target.boxSlot(box, slot) === null) return true;
+      slot++;
+    }
+    return false;
+  };
+  for (const it of items) {
+    const pk7 = convertToGen7(sourceGen, it.data, { nickname: it.nickname, otName: it.otName });
+    if (!isTransferableToGen7(pk7)) { skipped.push(it); continue; }
+    if (!advanceToEmpty()) break;
+    target.setBoxSlot(box, slot, pk7);
     placed++;
     slot++;
   }

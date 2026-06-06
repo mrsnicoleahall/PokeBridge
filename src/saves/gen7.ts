@@ -6,7 +6,7 @@
 // boxed mon lives at 0xEACE + (box*30 + slot)*232. Writing a slot only requires recomputing block 14's
 // checksum (USUM has no whole-save signature, unlike XY/ORAS). All offsets verified against a real save.
 
-import { decryptPk7, encryptPk7, PK7_SIZE } from '../codec/pk7';
+import { decryptPk7, encryptPk7, pk7Checksum, readSpeciesPk7, PK7_SIZE } from '../codec/pk7';
 import { crc16x25 } from './crc16';
 
 const SAVE_SIZE = 0x6cc00;
@@ -15,8 +15,6 @@ const BOX_BLOCK_LEN = 0x36600; // 960 * 232
 const BOX_CRC_SLOT = 0x6ca8a; // block-info table (0x6CA14) + id 14 * 8 + 6
 const SLOTS_PER_BOX = 30;
 const BOX_COUNT = 32;
-
-const u32 = (b: Uint8Array, o: number) => (b[o]! | (b[o + 1]! << 8) | (b[o + 2]! << 16) | (b[o + 3]! << 24)) >>> 0;
 
 export class Gen7Save {
   private readonly data: Uint8Array;
@@ -31,11 +29,29 @@ export class Gen7Save {
     return BOX_OFFSET + (box * SLOTS_PER_BOX + slot) * PK7_SIZE;
   }
 
-  /** Decrypted 232-byte PK7 for a box slot, or null if empty (empty slots have a zero encryption constant). */
+  /**
+   * Decrypted 232-byte PK7 for a box slot, or null if the slot doesn't hold a valid Pokémon.
+   * (USUM leaves non-zero leftover bytes in unused slots, so "occupied" means a real mon: the stored
+   * checksum validates and the species is in range — anything else is treated as a free slot.)
+   */
   boxSlot(box: number, slot: number): Uint8Array | null {
     const off = this.slotOffset(box, slot);
-    if (u32(this.data, off) === 0) return null;
-    return decryptPk7(this.data.subarray(off, off + PK7_SIZE));
+    const stored = this.data[off + 6]! | (this.data[off + 7]! << 8);
+    const dec = decryptPk7(this.data.subarray(off, off + PK7_SIZE));
+    if (pk7Checksum(dec) !== stored) return null;
+    const species = readSpeciesPk7(dec);
+    if (species < 1 || species > 807) return null;
+    return dec;
+  }
+
+  /** All 30 slots of a box, each decrypted PK7 or null. */
+  box(box: number): (Uint8Array | null)[] {
+    return Array.from({ length: SLOTS_PER_BOX }, (_, slot) => this.boxSlot(box, slot));
+  }
+
+  /** Number of PC boxes (USUM has 32). */
+  get boxCount(): number {
+    return BOX_COUNT;
   }
 
   /** Write a decrypted PK7 into a box slot, re-encrypt, and refresh the box block's checksum. */
