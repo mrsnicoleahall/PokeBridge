@@ -3,6 +3,7 @@
 
 import { decryptPk5, encryptPk5, isEmptySlot, PK5_SIZE } from '../codec/pk5';
 import { crc16ccitt } from './crc16';
+import { normalizeSave } from './normalize';
 
 const BOX_BASE = 0x400;
 const BOX_STRIDE = 0x1000;
@@ -81,8 +82,9 @@ export class Gen5Save {
 }
 
 export function loadGen5(buffer: Uint8Array): Gen5Save {
-  if (buffer.length !== 0x80000) {
-    throw new Error(`expected a 512KB Gen 5 save, got ${buffer.length} bytes`);
+  const data = normalizeSave(buffer); // strip emulator footers (DeSmuME .dsv/.dst)
+  if (data.length !== 0x80000) {
+    throw new Error(`expected a 512KB Gen 5 save, got ${data.length} bytes`);
   }
-  return new Gen5Save(buffer);
+  return new Gen5Save(data);
 }

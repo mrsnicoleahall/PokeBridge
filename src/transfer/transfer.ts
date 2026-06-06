@@ -8,6 +8,7 @@
 
 import { decryptPk5, pk5Checksum, readSpecies, PK5_SIZE } from '../codec/pk5';
 import { convertGen4ToGen5 } from '../convert/gen4to5';
+import { normalizeSave } from '../saves/normalize';
 import type { Gen5Save } from '../saves/gen5';
 
 export interface SourceMon {
@@ -18,7 +19,8 @@ export interface SourceMon {
 }
 
 /** Enumerate valid Pokémon in a Gen 4/5 save, deduped by PID. `maxDex` bounds the source generation. */
-export function listSourceMon(saveBytes: Uint8Array, maxDex = 649): SourceMon[] {
+export function listSourceMon(rawBytes: Uint8Array, maxDex = 649): SourceMon[] {
+  const saveBytes = normalizeSave(rawBytes); // tolerate emulator footers
   const dv = new DataView(saveBytes.buffer, saveBytes.byteOffset, saveBytes.byteLength);
   const out: SourceMon[] = [];
   const seen = new Set<number>();

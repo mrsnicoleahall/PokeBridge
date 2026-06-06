@@ -49,7 +49,9 @@ official transfer chain (notably the severed Gen 2→3 jump, plus one-way Pal Pa
 4. ✅ Gen 4→5 conversion — **DONE**. End-to-end verified: real Diamond mon → converted → into B2W2 save → reads back. (PK4↔PK5 share layout; deltas = nature byte 0x41 = PID%25, flags 0x42 = 0.)
 5. ✅ transfer orchestrator + source enumerator — **DONE**. `listSourceMon` (scan + dedup-by-PID, game-agnostic for Gen 4/5) → `transferToGen5Box`. Verified on Diamond + SoulSilver → B2W2.
 6. ✅ UI MVP (Vite+React) — **DONE**. Pick source game → load .sav → sprite grid of your mon → load Black 2 → click mon → click empty box slot → download. Pixel BW sprites, clean storage-terminal look. `npm run dev` (port 5273).
-7. PK3 reader + Gen 3→5 (emerald.sav, firered.sav)  ← **next**
+7. Gen 3 → 5:
+   - ✅ PK3 codec (decode-only) — validated vs real Emerald + FireRed. Shares the 24-perm table (ByOrder helpers); XOR cipher key=OTID^PID; checksum = sum of decrypted data words.
+   - ⏳ next: Gen 3 internal→National species map; Gen 3 save-section parser (14 sections + footers, active-slot by save index, boxes may straddle section boundaries); Gen 3→5 conversion (ability slot, met/Pal Park, IVs already 0-31, PP, level→exp, OT/nickname charset→Unicode); wire into UI dropdown.
 8. Gen 1/2 (GB) readers + Gen 1/2→5 (official VC-transfer DV→IV rules)
 9. Input normalizer (strip DeSmuME/emulator footers) + direct SD-card path + polish
    - ✅ direct SD save: File System Access API writes the raw `.sav` back in place on the card (CFW/nds-bootstrap compatible); download fallback otherwise. CFW round-trip documented in README.
