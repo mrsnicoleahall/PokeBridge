@@ -108,3 +108,25 @@ export function transferToGen5Box(
 ): void {
   target.setBoxSlot(box, slot, convertToGen5(sourceGen, data, opts));
 }
+
+/**
+ * Transfer many source mon at once. Fills the target's EMPTY slots in order, starting at `startBox`
+ * slot 0 and advancing through slots and boxes (occupied slots are skipped, never overwritten).
+ * Returns how many were placed (fewer than `items.length` if the boxes filled up).
+ */
+export function transferManyToGen5(
+  target: Gen5Save,
+  sourceGen: number,
+  items: SourceMon[],
+  startBox = 0,
+): number {
+  let idx = 0;
+  for (let box = startBox; box < 24 && idx < items.length; box++) {
+    for (let slot = 0; slot < 30 && idx < items.length; slot++) {
+      if (target.boxSlot(box, slot) !== null) continue; // never clobber an existing mon
+      const it = items[idx++]!;
+      target.setBoxSlot(box, slot, convertToGen5(sourceGen, it.data, { nickname: it.nickname, otName: it.otName }));
+    }
+  }
+  return idx;
+}

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { readSource, transferToGen5Box, type SourceMon } from '../transfer/transfer';
+import { readSource, transferToGen5Box, transferManyToGen5, type SourceMon } from '../transfer/transfer';
 import { loadGen5, type Gen5Save } from '../saves/gen5';
 import { readSpecies } from '../codec/pk5';
 import { spriteUrl, spriteFallbackUrl } from './sprites';
@@ -145,12 +145,32 @@ export function App() {
     if (!save) return flash('Load your Black 2 save on the right first.');
     if (selected == null) return flash('Pick a Pokémon on the left first.');
     if (slots[slot]) return flash('That slot is taken — pick an empty one.');
-    const pick = mon[selected]!;
+    const idx = selected;
+    const pick = mon[idx]!;
     transferToGen5Box(save, box, slot, game.gen, pick.data, { nickname: pick.nickname, otName: pick.otName });
-    setMoved((m) => new Set(m).add(pick.pid));
+    setMoved((m) => new Set(m).add(idx));
     setSelected(null);
     bump((v) => v + 1);
     flash(`Sent ${pick.nickname || `#${pick.species}`} → Box ${box + 1}`);
+  }
+
+  function transferAll() {
+    if (!save) return flash('Load your Black 2 / White 2 save on the right first.');
+    const pending = mon.map((m, i) => ({ m, i })).filter(({ i }) => !moved.has(i));
+    if (pending.length === 0) return flash('Nothing left to transfer.');
+    const placed = transferManyToGen5(save, game.gen, pending.map((p) => p.m), box);
+    setMoved((prev) => {
+      const next = new Set(prev);
+      for (let k = 0; k < placed; k++) next.add(pending[k]!.i);
+      return next;
+    });
+    setSelected(null);
+    bump((v) => v + 1);
+    flash(
+      placed < pending.length
+        ? `Transferred ${placed} — boxes filled up, ${pending.length - placed} left`
+        : `Transferred all ${placed} into the boxes ✓`,
+    );
   }
 
   return (
@@ -203,11 +223,19 @@ export function App() {
                 hidden
                 onChange={(e) => e.target.files?.[0] && loadSource(e.target.files[0])}
               />
+              {mon.length > 0 && (
+                <div className="bulk-row">
+                  <span>{mon.length} Pokémon · {moved.size} sent</span>
+                  <button className="bulk-btn" onClick={transferAll} disabled={!save || moved.size >= mon.length}>
+                    Transfer all →
+                  </button>
+                </div>
+              )}
               <div className="grid mon-grid">
                 {mon.map((m, i) => (
                   <button
-                    key={`${m.pid}-${i}`}
-                    className={`mon ${selected === i ? 'sel' : ''} ${moved.has(m.pid) ? 'moved' : ''}`}
+                    key={`${i}-${m.species}`}
+                    className={`mon ${selected === i ? 'sel' : ''} ${moved.has(i) ? 'moved' : ''}`}
                     onClick={() => setSelected(i)}
                     title={`#${m.species}`}
                   >
