@@ -5,12 +5,12 @@
 // BigInt is used for the multiply: 0x41C64E6D * (up to 2^32) exceeds Number.MAX_SAFE_INTEGER,
 // so plain `*` would lose precision.
 
-const MULT = 0x41c64e6dn;
-const ADD = 0x6073n;
-const MASK = 0xffffffffn;
+const MULT = 0x41c64e6d;
+const ADD = 0x6073;
 
 export function lcrngNext(seed: number): number {
-  return Number((BigInt(seed >>> 0) * MULT + ADD) & MASK);
+  // Math.imul does the 32-bit multiply without BigInt overhead; >>> 0 wraps mod 2^32.
+  return (Math.imul(seed >>> 0, MULT) + ADD) >>> 0;
 }
 
 /** Infinite stream of the high-16-bit XOR keys produced by advancing `seed`. */
