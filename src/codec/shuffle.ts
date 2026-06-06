@@ -17,18 +17,31 @@ export function blockOrderIndex(pid: number): number {
 
 type Quad<T> = [T, T, T, T];
 
-/** Rearrange stored (on-disk) block order back to canonical A,B,C,D. */
-export function unshuffleBlocks<T>(stored: Quad<T>, pid: number): Quad<T> {
-  const order = BLOCK_ORDERS[blockOrderIndex(pid)]!;
+// The same 24-permutation table is used by Gen 3 (substructures, index = PID % 24) and
+// Gen 4/5 (data blocks, index = blockOrderIndex(pid)). The ByOrder forms take the index directly.
+
+/** Rearrange stored (on-disk) order back to canonical, given the order index (0–23). */
+export function unshuffleByOrder<T>(stored: Quad<T>, orderIndex: number): Quad<T> {
+  const order = BLOCK_ORDERS[orderIndex]!;
   const canonical = new Array<T>(4) as Quad<T>;
   for (let p = 0; p < 4; p++) canonical[order[p]!] = stored[p]!;
   return canonical;
 }
 
-/** Rearrange canonical A,B,C,D blocks into the stored (on-disk) order for this PID. */
-export function shuffleBlocks<T>(canonical: Quad<T>, pid: number): Quad<T> {
-  const order = BLOCK_ORDERS[blockOrderIndex(pid)]!;
+/** Rearrange canonical blocks into stored (on-disk) order, given the order index (0–23). */
+export function shuffleByOrder<T>(canonical: Quad<T>, orderIndex: number): Quad<T> {
+  const order = BLOCK_ORDERS[orderIndex]!;
   const stored = new Array<T>(4) as Quad<T>;
   for (let p = 0; p < 4; p++) stored[p] = canonical[order[p]!]!;
   return stored;
+}
+
+/** Gen 4/5: rearrange stored block order back to canonical A,B,C,D. */
+export function unshuffleBlocks<T>(stored: Quad<T>, pid: number): Quad<T> {
+  return unshuffleByOrder(stored, blockOrderIndex(pid));
+}
+
+/** Gen 4/5: rearrange canonical A,B,C,D blocks into the stored order for this PID. */
+export function shuffleBlocks<T>(canonical: Quad<T>, pid: number): Quad<T> {
+  return shuffleByOrder(canonical, blockOrderIndex(pid));
 }
