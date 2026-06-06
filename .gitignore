@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Never commit real save files or Pokemon data
+*.sav
+*.pk3
+*.pk4
+*.pk5
+# Anchored to repo root so they don't match src/saves/ etc.
+/saves/
+/backups/
+/fixtures/
