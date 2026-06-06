@@ -184,7 +184,7 @@ export function App() {
 
       <ol className="steps">
         <li><b>1</b> Pick your old game &amp; load its save</li>
-        <li><b>2</b> Load your Black 2 / White 2 save</li>
+        <li><b>2</b> Load your Black / White / Black 2 / White 2 save</li>
         <li><b>3</b> Click a Pokémon, then an empty box slot</li>
         <li><b>4</b> Download — your original file is never touched</li>
       </ol>
@@ -259,7 +259,7 @@ export function App() {
         {/* --------------------------- DESTINATION -------------------------- */}
         <section className="panel target">
           <div className="panel-head">
-            <h2>Black 2 / White 2</h2>
+            <h2>Black / White (Gen 5)</h2>
             {save && (
               <button className="ghost" onClick={saveOut}>
                 {targetHandle ? '✓ Save to SD (in place)' : HAS_FSA ? '↓ Save to SD…' : '↓ Download save'}
@@ -270,7 +270,7 @@ export function App() {
           {!save ? (
             <>
               <button className="drop" onClick={() => (HAS_FSA ? openTargetFromDisk() : dstInput.current?.click())}>
-                Load Black 2 / White 2 .sav
+                Load Black / White / B2W2 .sav
               </button>
               <input
                 ref={dstInput}

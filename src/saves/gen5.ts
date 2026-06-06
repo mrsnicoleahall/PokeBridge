@@ -12,15 +12,35 @@ const SLOTS_PER_BOX = 30;
 const BOX_COUNT = 24;
 const BOX_DATA_LEN = 0xff0; // 30 * 136 — region a box's checksum covers
 const BOX_CRC_OFFSET = 0xff2; // box CRC-16-CCITT stored here, relative to box start
-const BACKUP = 0x26000; // backup save copy lives this far after the primary
-const COPIES = [0, BACKUP];
+// The backup save copy lives at a generation-specific offset: +0x26000 on Black 2/White 2,
+// +0x24000 on the original Black/White. Box base/stride/checksum are otherwise identical.
+const BACKUP_CANDIDATES = [0x26000, 0x24000];
 
 export class Gen5Save {
   private readonly data: Uint8Array;
+  private readonly copies: number[]; // [primary 0, backup] — backup offset detected (BW vs B2W2)
 
   /** Owns a private copy of the buffer — never mutates the caller's data. */
   constructor(buffer: Uint8Array) {
     this.data = buffer.slice();
+    this.copies = [0, this.detectBackupOffset()];
+  }
+
+  /** The real backup block is the candidate offset whose box checksums all still validate. */
+  private detectBackupOffset(): number {
+    let best = BACKUP_CANDIDATES[0]!;
+    let bestMatches = -1;
+    for (const delta of BACKUP_CANDIDATES) {
+      let matches = 0;
+      for (let box = 0; box < BOX_COUNT; box++) {
+        const start = delta + BOX_BASE + box * BOX_STRIDE;
+        if (start + BOX_CRC_OFFSET + 2 > this.data.length) break;
+        const stored = this.data[start + BOX_CRC_OFFSET]! | (this.data[start + BOX_CRC_OFFSET + 1]! << 8);
+        if (crc16ccitt(this.data.subarray(start, start + BOX_DATA_LEN)) === stored) matches++;
+      }
+      if (matches > bestMatches) { bestMatches = matches; best = delta; }
+    }
+    return best;
   }
 
   private boxStart(copy: number, box: number): number {
@@ -57,7 +77,7 @@ export class Gen5Save {
   setBoxSlot(box: number, slot: number, decrypted: Uint8Array): void {
     if (decrypted.length !== SLOT_SIZE) throw new Error(`expected ${SLOT_SIZE}-byte PK5`);
     const enc = encryptPk5(decrypted);
-    for (const copy of COPIES) {
+    for (const copy of this.copies) {
       this.data.set(enc, this.slotOffset(copy, box, slot));
       this.updateBoxChecksum(copy, box);
     }
@@ -65,7 +85,7 @@ export class Gen5Save {
 
   /** Recompute every box checksum in both copies. On an untouched save this is a no-op. */
   recomputeAllBoxChecksums(): void {
-    for (const copy of COPIES) {
+    for (const copy of this.copies) {
       for (let box = 0; box < BOX_COUNT; box++) this.updateBoxChecksum(copy, box);
     }
   }

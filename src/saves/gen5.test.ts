@@ -5,7 +5,8 @@ import { loadGen5 } from './gen5';
 import { readSpecies } from '../codec/pk5';
 import { crc16ccitt } from './crc16';
 
-const sav = new Uint8Array(readFileSync(fileURLToPath(new URL('../../fixtures/b2w2.sav', import.meta.url))));
+const fixture = (n: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../../fixtures/${n}`, import.meta.url))));
+const sav = fixture('b2w2.sav');
 
 describe('Gen 5 (B2W2) save parser — against real save', () => {
   it('reads the six Pokémon stored in Box 8', () => {
@@ -62,6 +63,31 @@ describe('Gen 5 (B2W2) save parser — against real save', () => {
     const base = 0x400;
     const stored = out[base + 0xff2]! | (out[base + 0xff3]! << 8);
     expect(stored).toBe(crc16ccitt(out.subarray(base, base + 0xff0)));
+  });
+
+  it('handles an original Black/White save (backup auto-detected at +0x24000)', () => {
+    const bw = fixture('bw_black.sav');
+    const save = loadGen5(bw);
+    save.recomputeAllBoxChecksums(); // no-op iff box layout + backup offset are correct for BW
+    expect(Buffer.from(save.toBytes()).equals(Buffer.from(bw))).toBe(true);
+  });
+
+  it('transfers a mon into a BW save, reads it back, and keeps checksums valid', () => {
+    const save = loadGen5(fixture('bw_black.sav'));
+    const donor = loadGen5(fixture('b2w2.sav')).boxSlot(7, 0)!; // Regirock (species 377)
+    let done = false;
+    for (let b = 0; b < 24 && !done; b++) {
+      for (let s = 0; s < 30 && !done; s++) {
+        if (save.boxSlot(b, s) !== null) continue;
+        save.setBoxSlot(b, s, donor);
+        const reloaded = loadGen5(save.toBytes());
+        expect(readSpecies(reloaded.boxSlot(b, s)!)).toBe(377);
+        reloaded.recomputeAllBoxChecksums();
+        expect(Buffer.from(reloaded.toBytes()).equals(Buffer.from(save.toBytes()))).toBe(true);
+        done = true;
+      }
+    }
+    expect(done).toBe(true);
   });
 
   it('keeps the primary and backup copies in sync after a write', () => {
