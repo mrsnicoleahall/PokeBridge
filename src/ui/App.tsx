@@ -18,6 +18,9 @@ const BOX_COLS = 6;
 const SLOTS_PER_BOX = 30;
 const BOX_COUNT = 24;
 
+// File System Access API lets us write the save straight back to the SD card, in place.
+const HAS_FSA = typeof window !== 'undefined' && 'showOpenFilePicker' in window;
+
 const readFile = (file: File): Promise<Uint8Array> =>
   file.arrayBuffer().then((b) => new Uint8Array(b));
 
@@ -54,6 +57,7 @@ export function App() {
 
   const [save, setSave] = useState<Gen5Save | null>(null);
   const [targetName, setTargetName] = useState('');
+  const [targetHandle, setTargetHandle] = useState<any>(null); // FileSystemFileHandle, for in-place SD save
   const [box, setBox] = useState(0);
   const [, bump] = useState(0); // force re-read after a mutation
   const [toast, setToast] = useState('');
@@ -80,15 +84,57 @@ export function App() {
     }
   }
 
-  async function loadTarget(file: File) {
+  async function loadTarget(file: File, handle: any = null) {
     try {
       const bytes = await readFile(file);
       setSave(loadGen5(bytes));
       setTargetName(file.name);
+      setTargetHandle(handle);
       setBox(0);
-      flash(`Loaded destination: ${file.name}`);
+      flash(handle ? `Loaded ${file.name} — savable to the SD in place` : `Loaded destination: ${file.name}`);
     } catch (e) {
       flash(`Not a valid Black/White 2 save: ${(e as Error).message}`);
+    }
+  }
+
+  // Open the Black 2 save off the SD card with a writable handle (so "Save to SD" writes in place).
+  async function openTargetFromDisk() {
+    try {
+      const [handle] = await (window as any).showOpenFilePicker({
+        types: [{ description: 'DS save', accept: { 'application/octet-stream': ['.sav', '.dsv', '.dst', '.bin'] } }],
+      });
+      await loadTarget(await handle.getFile(), handle);
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') flash(`Couldn't open: ${(e as Error).message}`);
+    }
+  }
+
+  // Write the modified save back — in place to the SD if we have a handle, else picker/download.
+  async function saveOut() {
+    if (!save) return;
+    const bytes = save.toBytes();
+    try {
+      if (targetHandle) {
+        const w = await targetHandle.createWritable();
+        await w.write(bytes as unknown as BufferSource);
+        await w.close();
+        return flash('✓ Saved back to the SD card, in place — load it on your 2DS');
+      }
+      if (HAS_FSA) {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: targetName || 'black2.sav',
+          types: [{ accept: { 'application/octet-stream': ['.sav'] } }],
+        });
+        const w = await handle.createWritable();
+        await w.write(bytes as unknown as BufferSource);
+        await w.close();
+        setTargetHandle(handle);
+        return flash('✓ Saved');
+      }
+      download(bytes, (targetName || 'black2').replace(/\.sav$/i, '') + ' (PokeBridge).sav');
+      flash('Downloaded — drop it on your SD card');
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') flash(`Save failed: ${(e as Error).message}`);
     }
   }
 
@@ -186,15 +232,17 @@ export function App() {
           <div className="panel-head">
             <h2>Black 2 / White 2</h2>
             {save && (
-              <button className="ghost" onClick={() => download(save.toBytes(), targetName.replace(/\.sav$/i, '') + ' (PokeBridge).sav')}>
-                ↓ Download save
+              <button className="ghost" onClick={saveOut}>
+                {targetHandle ? '✓ Save to SD (in place)' : HAS_FSA ? '↓ Save to SD…' : '↓ Download save'}
               </button>
             )}
           </div>
 
           {!save ? (
             <>
-              <button className="drop" onClick={() => dstInput.current?.click()}>Load Black 2 / White 2 .sav</button>
+              <button className="drop" onClick={() => (HAS_FSA ? openTargetFromDisk() : dstInput.current?.click())}>
+                Load Black 2 / White 2 .sav
+              </button>
               <input
                 ref={dstInput}
                 type="file"
@@ -202,10 +250,17 @@ export function App() {
                 hidden
                 onChange={(e) => e.target.files?.[0] && loadTarget(e.target.files[0])}
               />
-              <p className="empty-note">This is the only save PokeBridge writes to.</p>
+              <p className="empty-note">
+                This is the only save PokeBridge writes to.
+                {HAS_FSA ? ' Open it straight off your SD card and save back in place.' : ''}
+              </p>
             </>
           ) : (
             <>
+              <p className="sd-hint">
+                ↳ On a CFW 2DS, this save lives next to the ROM in <code>/roms/nds/</code> (or
+                <code> /saves/</code>, per your TWiLightMenu++ setting). Save back there and load it on the console.
+              </p>
               <div className="box-nav">
                 <button onClick={() => setBox((b) => (b + BOX_COUNT - 1) % BOX_COUNT)}>‹</button>
                 <span>Box {box + 1}</span>

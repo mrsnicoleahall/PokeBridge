@@ -48,10 +48,12 @@ official transfer chain (notably the severed Gen 2→3 jump, plus one-way Pal Pa
 3. ✅ Gen 5 block-checksum recompute (CRC-16-CCITT per box @ +0xFF2, both copies) — **DONE**, oracle-verified byte-identical on the real save
 4. ✅ Gen 4→5 conversion — **DONE**. End-to-end verified: real Diamond mon → converted → into B2W2 save → reads back. (PK4↔PK5 share layout; deltas = nature byte 0x41 = PID%25, flags 0x42 = 0.)
 5. ✅ transfer orchestrator + source enumerator — **DONE**. `listSourceMon` (scan + dedup-by-PID, game-agnostic for Gen 4/5) → `transferToGen5Box`. Verified on Diamond + SoulSilver → B2W2.
-6. UI MVP — MUST be clean/easy: drag `.sav` in → see boxes (sprites) → click mon → download result. No jargon.  ← **next**
-7. PK3 reader + Gen 3→5 (emerald.sav, firered.sav)
+6. ✅ UI MVP (Vite+React) — **DONE**. Pick source game → load .sav → sprite grid of your mon → load Black 2 → click mon → click empty box slot → download. Pixel BW sprites, clean storage-terminal look. `npm run dev` (port 5273).
+7. PK3 reader + Gen 3→5 (emerald.sav, firered.sav)  ← **next**
 8. Gen 1/2 (GB) readers + Gen 1/2→5 (official VC-transfer DV→IV rules)
 9. Input normalizer (strip DeSmuME/emulator footers) + direct SD-card path + polish
+   - ✅ direct SD save: File System Access API writes the raw `.sav` back in place on the card (CFW/nds-bootstrap compatible); download fallback otherwise. CFW round-trip documented in README.
+   - ⏳ still to do: strip emulator footers (DeSmuME `.dsv`/`.dst`) on input so footer'd saves load.
 
 Real-save round-trip verification is a milestone for when Nicole has actual saves on the SD card; until then
 development uses synthetic blocks + documented test vectors + fresh (empty-box) saves.

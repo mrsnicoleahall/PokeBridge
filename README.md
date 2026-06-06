@@ -9,6 +9,19 @@ transfer chain (the severed Gen 2→3 jump, one-way Pal Park / Poké Transfer) i
 - **Works with emulator / CFW saves** (GBARunner2, nds-bootstrap) — handles raw saves and emulator footers.
 - **Web UI** (coming): drag a `.sav` in → see your boxes → click a Pokémon → download the result.
 
+## Putting saves on your CFW 2DS (the round-trip)
+PokeBridge writes a **raw `.sav`** — exactly the battery format `nds-bootstrap` (TWiLightMenu++) loads, so it
+drops straight back onto the SD card. The easy loop, in a Chromium browser (localhost is a secure context):
+
+1. **Load Black 2 / White 2** → pick the save *off the mounted SD card* (this gives PokeBridge a writable handle).
+2. Transfer your Pokémon in.
+3. **Save to SD (in place)** → writes back to that same file on the card. No copy, no rename.
+4. Eject, boot the game on the 2DS — your mon are in the box.
+
+Where the save lives on the card depends on your TWiLightMenu++ "save location" setting: either **next to the
+ROM** in `/roms/nds/<Game>.sav` or in **`/saves/<Game>.sav`**. Match whichever yours uses.
+(Browsers without the File System Access API fall back to a normal download you copy onto the card.)
+
 ## Status
 Engine built test-first against real save files. See `SPEC.md` for the build order and progress.
 
