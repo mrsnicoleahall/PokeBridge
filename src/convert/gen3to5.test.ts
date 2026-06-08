@@ -37,6 +37,7 @@ describe('Gen 3 → Gen 5 conversion', () => {
     const pk5 = convertGen3ToGen5(syntheticPk3());
     expect(readSpecies(pk5)).toBe(gen3InternalToNational(25));
     expect(dv(pk5).getUint32(0x00, true)).toBe(0x12345678);
+    expect(pk5[0x15]).toBe(9); // ability set from species: Pikachu → Static
   });
 
   it('carries experience, friendship, EVs, moves, PP', () => {

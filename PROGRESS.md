@@ -33,6 +33,6 @@ npm test         # 99 tests
 ```
 
 ## Known cosmetic gaps (non-blocking; you don't care about legality)
-- Gen 1/2/3 transfers leave **held item** + **ability** empty (need cross-gen lookup tables).
-- Gen 7 met-data is minimal (version-of-origin set to Ultra Moon). Mon transfer, play, and read back correctly;
-  these are quick follow-ups if you ever want them filled.
+- **Ability is now carried** for Gen 1/2/3 — resolved from a species→ability table (slot from the Gen 3
+  ability bit, or PID-derived for Gen 1/2). Only the **held item** is left unset (item IDs differ across gens).
+- Gen 7 met-data is minimal (version-of-origin set to Ultra Moon). Mon transfer, play, and read back correctly.

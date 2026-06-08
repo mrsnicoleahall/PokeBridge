@@ -5,14 +5,13 @@
 // contest stats, moves, PP, PP-ups, IVs, egg flag, nature (PID%25), nickname + OT name (charset→UTF-16),
 // poké ball, met level, OT gender.
 //
-// KNOWN GAPS (documented; don't block in-game box loading, and Nicole doesn't need legality):
-//   - held item: item IDs differ across gens → cleared to none.
-//   - ability: Gen 5 stores an ability *ID*; resolving it needs a species→ability table → left 0.
-// These can be filled later with the relevant data tables.
+// Ability is resolved from the species + the Gen 3 ability bit (see ./abilities).
+// KNOWN GAP: held item is cleared (item IDs differ across gens; not carried).
 
 import { PK5_SIZE } from '../codec/pk5';
 import { gen3InternalToNational } from './gen3-species';
 import { decodeGen3Text } from './gen3-text';
+import { abilityIdFor } from './abilities';
 
 const dv = (b: Uint8Array) => new DataView(b.buffer, b.byteOffset, b.byteLength);
 
@@ -33,13 +32,13 @@ export function convertGen3ToGen5(pk3: Uint8Array): Uint8Array {
   const otid = s.getUint32(0x04, true);
 
   d.setUint32(0x00, pid, true); // PID
-  d.setUint16(0x08, gen3InternalToNational(s.getUint16(0x20, true)), true); // species (National Dex)
+  const national = gen3InternalToNational(s.getUint16(0x20, true));
+  d.setUint16(0x08, national, true); // species (National Dex)
   // 0x0A held item: left 0 (item IDs differ across generations)
   d.setUint16(0x0c, otid & 0xffff, true); // OT ID
   d.setUint16(0x0e, (otid >>> 16) & 0xffff, true); // OT secret ID
   d.setUint32(0x10, s.getUint32(0x24, true), true); // experience (carries the level)
   pk5[0x14] = pk3[0x29]!; // friendship
-  // 0x15 ability ID: left 0 (needs a species→ability table)
   pk5[0x16] = pk3[0x1b]!; // markings
   pk5[0x17] = pk3[0x12]! || 2; // language (Gen 3 codes match Gen 5; default ENG)
   pk5.set(pk3.slice(0x38, 0x3e), 0x18); // EVs (HP, Atk, Def, Spe, SpA, SpD)
@@ -53,6 +52,7 @@ export function convertGen3ToGen5(pk3: Uint8Array): Uint8Array {
   const gen3iv = s.getUint32(0x48, true);
   const isEgg = (gen3iv >>> 30) & 1;
   d.setUint32(0x38, ((gen3iv & 0x3fffffff) | (isEgg << 30) | (1 << 31)) >>> 0, true); // IVs + egg + nicknamed
+  pk5[0x15] = abilityIdFor(national, (gen3iv >>> 31) & 1); // ability from species + Gen 3 ability bit
 
   pk5[0x41] = pid % 25; // Gen 5 nature byte
   pk5[0x42] = 0; // no hidden ability

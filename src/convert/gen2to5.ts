@@ -5,6 +5,7 @@
 
 import { PK5_SIZE } from '../codec/pk5';
 import { dvToIv, gbHpDv, buildIvWord, synthesizePid } from './gb-common';
+import { abilityIdFor } from './abilities';
 
 function writeUtf16(buf: Uint8Array, offset: number, text: string, maxChars: number): void {
   const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -38,6 +39,7 @@ export function convertGen2ToGen5(rec: Uint8Array, nickname: string, otName: str
   d.setUint16(0x0c, otid, true);
   d.setUint32(0x10, exp >>> 0, true);
   pk5[0x14] = rec[0x1b]!; // friendship
+  pk5[0x15] = abilityIdFor(species, pid & 1); // ability from species + PID-derived slot (Gen 2 has none)
   pk5[0x17] = 2; // language: ENG default
   // EVs (0x18) left 0 — Gen 1/2 stat-exp doesn't map to Gen 5 EVs
   for (let i = 0; i < 4; i++) d.setUint16(0x28 + i * 2, rec[0x02 + i]!, true); // moves

@@ -27,6 +27,7 @@ describe('Gen 1 → Gen 5 conversion', () => {
     const pk5 = convertGen1ToGen5(syntheticPk1(), 'BUDDY', 'RED');
     const v = dv(pk5);
     expect(readSpecies(pk5)).toBe(1); // Bulbasaur
+    expect(pk5[0x15]).toBe(65); // ability set: Bulbasaur → Overgrow
     expect(v.getUint16(0x0c, true)).toBe(0x1234);
     expect(v.getUint32(0x10, true)).toBe(21097);
     expect(v.getUint16(0x28, true)).toBe(33);

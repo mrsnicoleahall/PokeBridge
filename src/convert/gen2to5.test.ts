@@ -28,6 +28,7 @@ describe('Gen 2 → Gen 5 conversion', () => {
     const pk5 = convertGen2ToGen5(syntheticPk2(), 'SPARKY', 'ASH');
     const v = dv(pk5);
     expect(readSpecies(pk5)).toBe(25);
+    expect(pk5[0x15]).toBe(9); // ability set: Pikachu → Static
     expect(v.getUint16(0x0c, true)).toBe(0x1234);
     expect(v.getUint32(0x10, true)).toBe(21097);
     expect(pk5[0x14]).toBe(70);

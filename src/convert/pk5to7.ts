@@ -4,6 +4,7 @@
 // so EVs and IVs are reordered. Held item is dropped (item IDs differ); ability id carries over.
 
 import { PK7_SIZE } from '../codec/pk7';
+import { abilitySlotFor } from './abilities';
 
 const STAT_REORDER = [0, 1, 2, 4, 5, 3]; // Gen 5 [HP,Atk,Def,Spe,SpA,SpD] index for each Gen 7 slot
 
@@ -30,8 +31,9 @@ export function convertPk5ToPk7(pk5: Uint8Array): Uint8Array {
   d.setUint16(0x0c, s.getUint16(0x0c, true), true); // TID
   d.setUint16(0x0e, s.getUint16(0x0e, true), true); // SID
   d.setUint32(0x10, s.getUint32(0x10, true), true); // experience
-  pk7[0x14] = pk5[0x15]!; // ability id
-  pk7[0x15] = 1; // ability number (slot)
+  const abilityId = pk5[0x15]!;
+  pk7[0x14] = abilityId; // ability id
+  pk7[0x15] = abilitySlotFor(s.getUint16(0x08, true), abilityId) + 1; // ability number (1 = first, 2 = second)
   d.setUint32(0x18, pid, true); // PID
   pk7[0x1c] = pk5[0x41]!; // nature
 
