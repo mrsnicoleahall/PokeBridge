@@ -7,3 +7,10 @@ export function gen3InternalToNational(internal: number): number {
   if (internal >= 277 && internal <= 411) return internal - 25;
   return 0; // unused (252–276) or out of range
 }
+
+/** Inverse of gen3InternalToNational: National Dex → Gen 3 internal species index. 0 if not in Gen 3. */
+export function nationalToGen3Internal(national: number): number {
+  if (national >= 1 && national <= 251) return national;
+  if (national >= 252 && national <= 386) return national + 25;
+  return 0; // not present in Gen 3
+}

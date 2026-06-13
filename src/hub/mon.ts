@@ -32,6 +32,7 @@ export interface Mon {
   // Battle
   moves: [number, number, number, number]; // move ids; 0 = empty
   movePP: [number, number, number, number];
+  ppUps?: [number, number, number, number]; // PP-up count per move (0–3); defaults to none
   ability: number; // ability id; 0 if the origin gen had no abilities (Gen 1/2)
   abilitySlot?: number; // 0 = first, 1 = second, 2 = hidden
   nature: number; // 0..24

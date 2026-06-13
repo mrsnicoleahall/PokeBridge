@@ -18,3 +18,24 @@ export function decodeGen3Text(bytes: Uint8Array, start: number, maxLen: number)
   }
   return s.replace(/\s+$/, '');
 }
+
+/** Inverse of gen3Char for the alphanumeric + space range names use. Unknown chars map to space. */
+function gen3Code(ch: string): number {
+  const c = ch.charCodeAt(0);
+  if (ch === ' ') return 0x00;
+  if (c >= 48 && c <= 57) return 0xa1 + (c - 48); // 0-9
+  if (c >= 65 && c <= 90) return 0xbb + (c - 65); // A-Z
+  if (c >= 97 && c <= 122) return 0xd5 + (c - 97); // a-z
+  return 0x00; // unsupported symbol → space
+}
+
+/** Encode a string to a fixed-width Gen 3 name field (0xFF-terminated/padded). */
+export function encodeGen3Text(text: string, maxLen: number): Uint8Array {
+  const out = new Uint8Array(maxLen).fill(0xff);
+  let i = 0;
+  for (const ch of text) {
+    if (i >= maxLen) break;
+    out[i++] = gen3Code(ch);
+  }
+  return out;
+}
