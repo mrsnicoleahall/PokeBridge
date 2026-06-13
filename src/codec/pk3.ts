@@ -1,4 +1,6 @@
-// Gen 3 (Ruby/Sapphire/Emerald/FireRed/LeafGreen) Pokémon codec — DECODE ONLY (Gen 3 is a read-only source).
+// Gen 3 (Ruby/Sapphire/Emerald/FireRed/LeafGreen) Pokémon codec — decode AND encode.
+// Gen 3 was originally a read-only source; encode was added so the any-direction transfer
+// feature can write a mon back down into a Gen 3 save.
 //
 // 80-byte PK3:
 //   0x00 PID (u32)
@@ -10,7 +12,7 @@
 // by PID % 24. The species is the first u16 of the (canonical) Growth substructure — note this is the
 // Gen 3 *internal* species index, not the National Dex number.
 
-import { unshuffleByOrder } from './shuffle';
+import { shuffleByOrder, unshuffleByOrder } from './shuffle';
 
 export const PK3_SIZE = 80;
 const DATA = 0x20;
@@ -35,6 +37,32 @@ export function decryptPk3(enc: Uint8Array): Uint8Array {
   ];
   const canonical = unshuffleByOrder(subs, pid % 24);
   for (let i = 0; i < 4; i++) out.set(canonical[i]!, DATA + i * SUB);
+  return out;
+}
+
+/**
+ * Inverse of decryptPk3: take a canonical (decrypted) 80-byte PK3, refresh its checksum, shuffle the
+ * substructures into their PID-derived stored order, and XOR-encrypt the data region. The result is a
+ * stored PK3 that decryptPk3 round-trips back to the input.
+ */
+export function encryptPk3(decrypted: Uint8Array): Uint8Array {
+  const out = decrypted.slice();
+  const dv = view(out);
+  const pid = dv.getUint32(0x00, true);
+  const otid = dv.getUint32(0x04, true);
+  const key = (otid ^ pid) >>> 0;
+
+  dv.setUint16(0x1c, pk3Checksum(decrypted), true); // checksum over the canonical data region
+
+  const canonical = [0, 1, 2, 3].map((i) => out.slice(DATA + i * SUB, DATA + (i + 1) * SUB)) as [
+    Uint8Array, Uint8Array, Uint8Array, Uint8Array,
+  ];
+  const stored = shuffleByOrder(canonical, pid % 24);
+  for (let i = 0; i < 4; i++) out.set(stored[i]!, DATA + i * SUB);
+
+  for (let off = DATA; off < DATA_END; off += 4) {
+    dv.setUint32(off, (dv.getUint32(off, true) ^ key) >>> 0, true);
+  }
   return out;
 }
 

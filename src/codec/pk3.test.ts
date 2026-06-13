@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { PK3_SIZE, decryptPk3, pk3Checksum, readSpeciesPk3Internal } from './pk3';
+import { PK3_SIZE, decryptPk3, encryptPk3, pk3Checksum, readSpeciesPk3Internal } from './pk3';
 import { shuffleByOrder } from './shuffle';
 
 const fixture = (n: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../../fixtures/${n}`, import.meta.url))));
@@ -63,5 +63,33 @@ describe('PK3 codec (Gen 3, read-only)', () => {
 
   it('finds real Pokémon in firered.sav', () => {
     expect(scanPk3(fixture('firered.sav'))).toBeGreaterThan(0);
+  });
+});
+
+describe('PK3 encode (for down-transfer into Gen 3)', () => {
+  it('encrypt∘decrypt is identity for a real stored slot (byte-for-byte)', () => {
+    const sav = fixture('emerald.sav');
+    const dv = new DataView(sav.buffer, sav.byteOffset, sav.byteLength);
+    // Find the first decodable stored PK3 in the save and round-trip it through decrypt→encrypt.
+    for (let off = 0; off + PK3_SIZE <= sav.length; off += 4) {
+      const stored = dv.getUint16(off + 0x1c, true);
+      if (stored === 0) continue;
+      const slice = sav.slice(off, off + PK3_SIZE);
+      const dec = decryptPk3(slice);
+      if (pk3Checksum(dec) !== stored) continue;
+      expect(Array.from(encryptPk3(dec))).toEqual(Array.from(slice));
+      return;
+    }
+    throw new Error('no decodable PK3 found in fixture');
+  });
+
+  it('decrypt∘encrypt is identity across all 24 substructure orderings', () => {
+    for (let i = 0; i < 24; i++) {
+      const pid = i + 24 * 7; // pid % 24 == i
+      const canonical = decryptPk3(encodePk3(pid, 0x1111, 300));
+      const reDecoded = decryptPk3(encryptPk3(canonical));
+      expect(Array.from(reDecoded)).toEqual(Array.from(canonical));
+      expect(readSpeciesPk3Internal(reDecoded)).toBe(300);
+    }
   });
 });
