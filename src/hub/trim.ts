@@ -4,6 +4,7 @@
 // mon still can't be transferred.
 
 import { abilityIdFor } from '../convert/abilities';
+import { pidGender } from '../convert/gender';
 import { checkCompatibility, type Blocker } from './compatibility';
 import type { Generation, Mon } from './mon';
 
@@ -43,6 +44,12 @@ export function trimToFit(mon: Mon, target: Generation): TrimResult {
       case 'NATURE_NOT_PID_CONSISTENT': {
         removed.push(`Nature becomes ${out.pid % 25} (the value Gen ${target} reads from this PID)`);
         out.nature = out.pid % 25;
+        break;
+      }
+      case 'GENDER_NOT_PID_CONSISTENT': {
+        const g = pidGender(out.nationalDex, out.pid);
+        removed.push(`Gender becomes ${g === 1 ? 'female' : g === 2 ? 'genderless' : 'male'} (what Gen ${target} reads from this PID)`);
+        out.gender = g;
         break;
       }
       case 'SPECIES_OUT_OF_DEX':

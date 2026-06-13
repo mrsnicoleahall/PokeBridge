@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Generation, Mon } from './mon';
+import { pidGender } from '../convert/gender';
 import { checkCompatibility, canTransfer } from './compatibility';
 
-/** A baseline, fully-compatible Mon: Charizard, PID-consistent nature, only old moves. */
+/** A baseline, fully-compatible Mon: Charizard, PID-consistent nature + gender, only old moves. */
 function mon(overrides: Partial<Mon> = {}): Mon {
   const pid = 0x00000006; // pid % 25 = 6
   return {
@@ -20,7 +21,7 @@ function mon(overrides: Partial<Mon> = {}): Mon {
     ability: 66, // Blaze
     abilitySlot: 0,
     nature: pid % 25,
-    gender: 0,
+    gender: pidGender(6, pid), // consistent with the PID, like a real mon
     exp: 0,
     friendship: 70,
     ...overrides,
@@ -67,6 +68,16 @@ describe('compatibility checker', () => {
     const mismatched = mon({ pid: 0x00000006, nature: 10 }); // pid%25 = 6, not 10
     expect(checkCompatibility(mismatched, 3).map((x) => x.code)).toContain('NATURE_NOT_PID_CONSISTENT');
     expect(checkCompatibility(mismatched, 5).find((x) => x.code === 'NATURE_NOT_PID_CONSISTENT')).toBeUndefined();
+  });
+
+  it('blocks a gender the Gen 3 PID cannot reproduce, but not for Gen 5/7', () => {
+    // Charizard (#6) threshold 31; pid low byte 6 < 31 ⇒ PID says female. Force male to create a mismatch.
+    const mismatched = mon({ pid: 0x00000006, gender: 0 });
+    expect(checkCompatibility(mismatched, 3).map((x) => x.code)).toContain('GENDER_NOT_PID_CONSISTENT');
+    expect(checkCompatibility(mismatched, 5).find((x) => x.code === 'GENDER_NOT_PID_CONSISTENT')).toBeUndefined();
+    expect(checkCompatibility(mismatched, 7).find((x) => x.code === 'GENDER_NOT_PID_CONSISTENT')).toBeUndefined();
+    // a PID-consistent gender is fine
+    expect(checkCompatibility(mon({ pid: 0x00000006 }), 3).find((x) => x.code === 'GENDER_NOT_PID_CONSISTENT')).toBeUndefined();
   });
 
   it('reports multiple independent blockers at once', () => {

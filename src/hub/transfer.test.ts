@@ -6,6 +6,7 @@ import { loadGen7 } from '../saves/gen7';
 import { gen3ReadMon } from './codec-gen3';
 import { gen7ReadMon } from './codec-gen7';
 import { isShiny, type Mon } from './mon';
+import { pidGender } from '../convert/gender';
 import { prepareTransfer } from './transfer';
 
 const fixture = (n: string) => new Uint8Array(readFileSync(fileURLToPath(new URL(`../../fixtures/${n}`, import.meta.url))));
@@ -16,7 +17,7 @@ function syntheticGen7Mon(overrides: Partial<Mon> = {}): Mon {
     pid, encryptionConstant: 0xdeadbeef, nationalDex: 6, form: 0, otName: 'ASH', otId: 0,
     nickname: 'CHAR', language: 2, originGen: 7, ivs: [31, 31, 31, 31, 31, 31], evs: [0, 0, 0, 0, 0, 0],
     moves: [10, 52, 0, 0], movePP: [35, 25, 0, 0], ppUps: [0, 0, 0, 0], ability: 66, abilitySlot: 0,
-    nature: pid % 25, gender: 0, exp: 0, friendship: 70, ...overrides,
+    nature: pid % 25, gender: pidGender(6, pid), exp: 0, friendship: 70, ...overrides,
   };
 }
 
