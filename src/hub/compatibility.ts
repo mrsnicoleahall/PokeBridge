@@ -3,6 +3,7 @@
 // user opt into trimming them (see hub/trim.ts) — nothing is ever altered silently.
 
 import type { Generation, Mon } from './mon';
+import { pidGender } from '../convert/gender';
 
 export type BlockerCode =
   | 'SPECIES_OUT_OF_DEX' // species didn't exist yet in the target gen
@@ -10,7 +11,8 @@ export type BlockerCode =
   | 'ABILITY_TOO_NEW' // an ability was introduced after the target gen
   | 'HIDDEN_ABILITY_UNSUPPORTED' // Hidden Abilities didn't exist before Gen 5
   | 'FORM_NOT_REPRESENTABLE' // an alternate form can't exist in the target gen
-  | 'NATURE_NOT_PID_CONSISTENT'; // Gen 3 derives nature from the PID; a mismatch can't be kept
+  | 'NATURE_NOT_PID_CONSISTENT' // Gen 3 derives nature from the PID; a mismatch can't be kept
+  | 'GENDER_NOT_PID_CONSISTENT'; // Gen 3 derives gender from the PID; a mismatch can't be kept
 
 export interface Blocker {
   code: BlockerCode;
@@ -91,9 +93,20 @@ export function checkCompatibility(mon: Mon, target: Generation): Blocker[] {
     });
   }
 
-  // NOTE (pending refinement): Gen 3–5 also derive gender from the PID. Validating a Gen 6/7 mon's stored
-  // gender against its PID needs the per-species gender-ratio table; until that's wired in, gender is not
-  // yet enforced here. Tracked as a follow-up so the "strict" guarantee can cover it.
+  // Gen 3 has no stored gender field — it reads gender from the PID + species ratio. So a mon whose gender
+  // disagrees with what its PID produces can't keep that gender in Gen 3 without changing the PID. (Gen 5/7
+  // store gender explicitly, so this only applies to a Gen 3 target.)
+  if (target === 3 && mon.nationalDex <= DEX_CAP[3]) {
+    const pidG = pidGender(mon.nationalDex, mon.pid);
+    if (pidG !== mon.gender) {
+      const nameOf = (g: number) => (g === 1 ? 'female' : g === 2 ? 'genderless' : 'male');
+      blockers.push({
+        code: 'GENDER_NOT_PID_CONSISTENT',
+        field: 'gender',
+        detail: `Gen ${target} reads gender from the PID (this PID gives ${nameOf(pidG)}, but the mon is ${nameOf(mon.gender)}); keeping it would require changing the PID.`,
+      });
+    }
+  }
 
   return blockers;
 }

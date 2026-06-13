@@ -10,6 +10,7 @@ import { PK3_SIZE } from '../codec/pk3';
 import { gen3InternalToNational, nationalToGen3Internal } from '../convert/gen3-species';
 import { decodeGen3Text, encodeGen3Text } from '../convert/gen3-text';
 import { abilityIdFor } from '../convert/abilities';
+import { pidGender } from '../convert/gender';
 import type { Mon } from './mon';
 
 const dv = (b: Uint8Array) => new DataView(b.buffer, b.byteOffset, b.byteLength);
@@ -42,7 +43,7 @@ export function gen3ReadMon(pk3: Uint8Array): Mon {
     ability: abilityIdFor(national, abilityBit),
     abilitySlot: abilityBit,
     nature: pid % 25,
-    gender: 0, // Gen 3 derives gender from the PID; not separately stored (refinement: gender-ratio table)
+    gender: pidGender(national, pid), // Gen 3 derives gender from PID + species gender ratio
     exp: s.getUint32(0x24, true),
     friendship: pk3[0x29]!,
     heldItem: s.getUint16(0x22, true),

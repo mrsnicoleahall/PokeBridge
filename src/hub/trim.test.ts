@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Mon } from './mon';
+import { pidGender } from '../convert/gender';
 import { canTransfer } from './compatibility';
 import { trimToFit } from './trim';
 
@@ -9,7 +10,7 @@ function mon(overrides: Partial<Mon> = {}): Mon {
     pid, nationalDex: 6, form: 0, otName: 'ASH', otId: 0, nickname: 'CHAR', originGen: 7,
     ivs: [31, 31, 31, 31, 31, 31], evs: [0, 0, 0, 0, 0, 0],
     moves: [10, 52, 0, 0], movePP: [35, 25, 0, 0], ability: 66, abilitySlot: 0,
-    nature: pid % 25, gender: 0, exp: 0, friendship: 70, ...overrides,
+    nature: pid % 25, gender: pidGender(6, pid), exp: 0, friendship: 70, ...overrides,
   };
 }
 
@@ -38,6 +39,15 @@ describe('trim engine', () => {
     expect(trimmed.nationalDex).toBe(570); // species untouched
     expect(unresolved.map((b) => b.code)).toContain('SPECIES_OUT_OF_DEX');
     expect(canTransfer(trimmed, 3)).toBe(false);
+  });
+
+  it('trims a PID-inconsistent gender to the value Gen 3 derives from the PID', () => {
+    const m = mon({ pid: 0x00000006, gender: 0 }); // Charizard pid low byte 6 < threshold 31 ⇒ PID says female
+    const { mon: trimmed, removed, unresolved } = trimToFit(m, 3);
+    expect(trimmed.gender).toBe(1); // female
+    expect(removed.some((r) => /Gender/.test(r))).toBe(true);
+    expect(unresolved).toEqual([]);
+    expect(canTransfer(trimmed, 3)).toBe(true);
   });
 
   it('replaces a hidden ability with the species regular ability when going below Gen 5', () => {
