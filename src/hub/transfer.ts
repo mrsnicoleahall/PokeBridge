@@ -5,28 +5,31 @@
 
 import type { Generation, Mon } from './mon';
 import { gen3ReadMon, gen3WriteMon } from './codec-gen3';
+import { gen4ReadMon, gen4WriteMon } from './codec-gen4';
 import { gen5ReadMon, gen5WriteMon } from './codec-gen5';
 import { gen7ReadMon, gen7WriteMon } from './codec-gen7';
 import { checkCompatibility, type Blocker } from './compatibility';
 import { trimToFit } from './trim';
 
 /** Generations that can be both a source and a destination through the hub. */
-export type BidirectionalGen = 3 | 5 | 7;
+export type BidirectionalGen = 3 | 4 | 5 | 7;
 
 const READERS: Record<BidirectionalGen, (slot: Uint8Array) => Mon> = {
   3: gen3ReadMon,
+  4: gen4ReadMon,
   5: gen5ReadMon,
   7: gen7ReadMon,
 };
 const WRITERS: Record<BidirectionalGen, (mon: Mon) => Uint8Array> = {
   3: gen3WriteMon,
+  4: gen4WriteMon,
   5: gen5WriteMon,
   7: gen7WriteMon,
 };
 
 function assertSupported(gen: Generation): asserts gen is BidirectionalGen {
-  if (gen !== 3 && gen !== 5 && gen !== 7) {
-    throw new Error(`Gen ${gen} isn't a bidirectional hub endpoint yet (supported: 3, 5, 7).`);
+  if (gen !== 3 && gen !== 4 && gen !== 5 && gen !== 7) {
+    throw new Error(`Gen ${gen} isn't a bidirectional hub endpoint yet (supported: 3, 4, 5, 7).`);
   }
 }
 

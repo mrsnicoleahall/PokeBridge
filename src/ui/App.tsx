@@ -24,6 +24,7 @@ const SOURCE_GAMES: SourceGame[] = [
 
 const DEST_GAMES: DestGame[] = [
   { id: 'gen3', label: 'Ruby / Sapphire / Emerald / FR / LG  (Gen 3)', gen: 3 },
+  { id: 'gen4', label: 'Diamond / Pearl / Platinum / HG / SS  (Gen 4)', gen: 4 },
   { id: 'gen5', label: 'Black / White / Black 2 / White 2  (Gen 5)', gen: 5 },
   { id: 'gen7', label: 'Ultra Sun / Ultra Moon  (Gen 7)', gen: 7 },
 ];
@@ -31,7 +32,8 @@ const DEST_GAMES: DestGame[] = [
 const BOX_COLS = 6;
 const SLOTS_PER_BOX = 30;
 const HAS_FSA = typeof window !== 'undefined' && 'showOpenFilePicker' in window;
-const isHubGen = (g: number): g is BidirectionalGen => g === 3 || g === 5 || g === 7;
+const isHubGen = (g: number): g is BidirectionalGen => g === 3 || g === 4 || g === 5 || g === 7;
+const UP_ONLY_DESTS = (g: number) => g === 5 || g === 7; // where legacy Gen 1/2 sources may go
 
 type Entry =
   | { kind: 'hub'; dex: number; label: string; mon: Mon }
@@ -66,8 +68,8 @@ function evaluate(entry: Entry, destGen: BidirectionalGen): Verdict {
     const blockers = checkCompatibility(entry.mon, destGen);
     return { ready: blockers.length === 0, blockers, trimmable: blockers.length > 0 && blockers.every((b) => b.code !== 'SPECIES_OUT_OF_DEX') };
   }
-  // legacy Gen 1/2/4 — up only
-  if (destGen === 3) {
+  // legacy Gen 1/2 — up only (to Gen 5/7)
+  if (!UP_ONLY_DESTS(destGen)) {
     return { ready: false, trimmable: false, blockers: [{ code: 'SPECIES_OUT_OF_DEX', detail: `Gen ${entry.gen} Pokémon only transfer UP — pick a Gen 5 or Gen 7 destination.` }] };
   }
   const ok = destGen === 7 ? isTransferableToGen7(legacyConvert(entry, destGen)) : isTransferableToGen5(legacyConvert(entry, destGen));
@@ -198,7 +200,7 @@ export function App() {
       const note = out.status === 'trimmed' ? ` · trimmed: ${out.removed.join(', ')}` : '';
       finishPlace(selected, `Sent ${entry.label} → Box ${box + 1}${note}`);
     } else {
-      if (destGen === 3) return flash(`Gen ${entry.gen} Pokémon can only transfer up to Gen 5 or 7.`);
+      if (!UP_ONLY_DESTS(destGen)) return flash(`Gen ${entry.gen} Pokémon can only transfer up to Gen 5 or 7.`);
       const pk = legacyConvert(entry, destGen);
       const ok = destGen === 7 ? isTransferableToGen7(pk) : isTransferableToGen5(pk);
       if (!ok) return flash(`${entry.label} can't transfer up — skipped.`);
@@ -345,8 +347,8 @@ export function App() {
               <p className="sd-hint">
                 {destGen === 7 ? (
                   <>↳ Back up the Ultra Sun/Moon save with <code>Checkpoint</code>, edit here, restore — then the in-game Bank/HOME link moves whole boxes.</>
-                ) : destGen === 5 ? (
-                  <>↳ On a CFW 2DS this lives by the ROM in <code>/roms/nds/</code> (or <code>/saves/</code>). Save back and load on the console.</>
+                ) : destGen === 5 || destGen === 4 ? (
+                  <>↳ On a CFW 2DS this DS save lives by the ROM in <code>/roms/nds/</code> (or <code>/saves/</code>). Save back and load on the console.</>
                 ) : (
                   <>↳ Gen 3 save — back it up first (the original is never touched here), then load the edited copy on your console/emulator.</>
                 )}
