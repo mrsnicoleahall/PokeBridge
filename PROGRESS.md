@@ -1,10 +1,25 @@
 # PokeBridge — progress
 
-**99 tests green · 21 commits on `main` · build clean.** Every layer validated against real save files.
+**137 tests green · build clean · typecheck clean.** Every layer validated against real save files.
+
+## NEW: any-direction transfer (Gen 3 ↔ 5 ↔ 7)
+You can now move Pokémon **in any direction** across Gen 3, 5, and 7 — up *or down* — not just up the chain.
+A Gen 7 Ultra Moon mon can come back down into a Gen 3 Emerald save, etc. It works through a neutral
+in-memory "Mon" hub: every save reads into it, every save writes out from it, so **Gen 5 is no longer a
+pivot** — Gen 3 ↔ Gen 7 goes direct.
+
+**Strict by default, you stay in control.** A mon only transfers if it fits the destination with *zero
+changes*. Anything that can't (a species that didn't exist yet, a too-new move/ability, a form that can't
+go down, a nature the older game's PID can't reproduce) is flagged ⚠ with the exact reason — and you can
+choose **"Trim & transfer"** per mon to drop just the offending bits. Species/PID are never touched, so
+shininess is always preserved. The headline test moves a real Emerald mon up to Gen 7 and back to Gen 3
+through the hub with everything intact.
+
+Gen 1/2/4 remain **up-only** sources (→ Gen 5/7), exactly as before.
 
 ## The chain — any old game → a modern game
-**Sources:** Gen 1, 2, 3, 4, 5 (Red/Blue/Yellow · Gold/Silver/Crystal · Ruby…LeafGreen · DPPt/HGSS · BW/B2W2)
-**Destinations:** Gen 5 (Black/White/B2W2) **or Gen 7 (Ultra Sun/Ultra Moon)** — pick in the UI.
+**Sources:** Gen 1, 2, 3, 4, 5, 7 (Red/Blue/Yellow · Gold/Silver/Crystal · Ruby…LeafGreen · DPPt/HGSS · BW/B2W2 · USUM)
+**Destinations:** Gen 3 (RSE/FRLG) · Gen 5 (Black/White/B2W2) · Gen 7 (Ultra Sun/Ultra Moon) — pick in the UI.
 
 Every source→destination path has an end-to-end test: a real mon out of that save → converted → into a real
 destination save → reads back as the right species, checksums valid.
