@@ -30,9 +30,10 @@ const ABILITY_CAP: Record<Generation, number> = { 1: 0, 2: 0, 3: 77, 4: 123, 5: 
 /**
  * Generations that derive a Pokémon's nature directly from its PID (no separate nature field). Writing a
  * mon here with a nature that disagrees with PID % 25 would force a PID change — which we refuse, since
- * the PID is identity (and shininess). Gen 4/5 store nature separately, so only Gen 3 has this coupling.
+ * the PID is identity (and shininess). Gen 3 and Gen 4 are PID-coupled; Gen 5 decoupled nature into its
+ * own field, so it (and Gen 6/7) are exempt.
  */
-const NATURE_FROM_PID: ReadonlySet<Generation> = new Set<Generation>([3]);
+const NATURE_FROM_PID: ReadonlySet<Generation> = new Set<Generation>([3, 4]);
 
 /** All blockers preventing `mon` from existing unchanged in `target`. Empty array ⇒ transfers cleanly. */
 export function checkCompatibility(mon: Mon, target: Generation): Blocker[] {

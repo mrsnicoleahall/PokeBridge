@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadGen3 } from '../saves/gen3';
+import { loadGen4 } from '../saves/gen4';
 import { loadGen7 } from '../saves/gen7';
 import { gen3ReadMon } from './codec-gen3';
+import { gen4ReadMon } from './codec-gen4';
 import { gen7ReadMon } from './codec-gen7';
 import { isShiny, type Mon } from './mon';
 import { pidGender } from '../convert/gender';
@@ -49,6 +51,30 @@ describe('hub transfer — any direction, no pivot', () => {
     expect(m2.moves).toEqual(m0.moves);
     // shininess is a function of PID + OT ID, both preserved → identical verdict both ends
     expect(isShiny(m2.pid, m2.otId, 3)).toBe(isShiny(m0.pid, m0.otId, 3));
+  });
+
+  it('round-trips a real Diamond (Gen 4) mon up to Gen 7 and back down to Gen 4', () => {
+    const dia = loadGen4(fixture('diamond.sav'));
+    let m0: Mon | null = null;
+    for (let b = 0; b < dia.boxCount && !m0; b++) for (let s = 0; s < 30 && !m0; s++) {
+      const d = dia.boxSlot(b, s);
+      if (d) m0 = gen4ReadMon(d);
+    }
+    const up = prepareTransfer(m0!, 7);
+    expect(up.status).toBe('ready');
+    const usum = loadGen7(fixture('usum_moon.sav'));
+    usum.setBoxSlot(0, 0, up.bytes!);
+    const m1 = gen7ReadMon(loadGen7(usum.toBytes()).boxSlot(0, 0)!);
+
+    const down = prepareTransfer(m1, 4);
+    expect(down.status).toBe('ready');
+    const back = loadGen4(fixture('diamond.sav'));
+    back.setBoxSlot(17, 29, down.bytes!);
+    const m2 = gen4ReadMon(loadGen4(back.toBytes()).boxSlot(17, 29)!);
+    expect(m2.nationalDex).toBe(m0!.nationalDex);
+    expect(m2.pid).toBe(m0!.pid);
+    expect(m2.ivs).toEqual(m0!.ivs);
+    expect(m2.nature).toBe(m0!.nature);
   });
 
   it('strictly blocks an out-of-dex species going down, even with trim requested', () => {

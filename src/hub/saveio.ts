@@ -3,6 +3,7 @@
 // own Save class does the real encryption/checksum work; this is just a thin, gen-neutral adapter.
 
 import { loadGen3 } from '../saves/gen3';
+import { loadGen4 } from '../saves/gen4';
 import { loadGen5 } from '../saves/gen5';
 import { loadGen7 } from '../saves/gen7';
 import { readMon, writeMon, type BidirectionalGen } from './transfer';
@@ -25,11 +26,11 @@ export interface HubSave {
 }
 
 const SLOTS_PER_BOX = 30;
-const BOX_COUNT: Record<BidirectionalGen, number> = { 3: 14, 5: 24, 7: 32 };
+const BOX_COUNT: Record<BidirectionalGen, number> = { 3: 14, 4: 18, 5: 24, 7: 32 };
 
 export function loadHubSave(gen: BidirectionalGen, bytes: Uint8Array): HubSave {
   const save: { boxSlot(b: number, s: number): Uint8Array | null; setBoxSlot(b: number, s: number, d: Uint8Array): void; clearBoxSlot?(b: number, s: number): void; toBytes(): Uint8Array } =
-    gen === 3 ? loadGen3(bytes) : gen === 5 ? loadGen5(bytes) : loadGen7(bytes);
+    gen === 3 ? loadGen3(bytes) : gen === 4 ? loadGen4(bytes) : gen === 5 ? loadGen5(bytes) : loadGen7(bytes);
 
   return {
     gen,
